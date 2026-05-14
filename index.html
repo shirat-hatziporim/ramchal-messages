@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מערכת ניהול הודעות | בית כנסת הרמח"ל מיצד</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #1a3a5c;
+    --gold: #c9a84c;
+    --gold-light: #f0d080;
+    --white: #ffffff;
+    --gray-bg: #f4f1eb;
+    --gray-light: #e8e3d8;
+    --gray-mid: #9e9585;
+    --danger: #c0392b;
+    --success: #1a7a4a;
+    --text: #2c2825;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Heebo', sans-serif;
+    background: var(--gray-bg);
+    color: var(--text);
+    direction: rtl;
+    min-height: 100vh;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    background: var(--navy);
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.3);
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .header-logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .header-logo img {
+    height: 52px;
+    border-radius: 6px;
+    background: white;
+    padding: 3px;
+  }
+
+  .header-title {
+    color: var(--white);
+  }
+
+  .header-title h1 {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .header-title p {
+    font-size: 12px;
+    color: var(--gold-light);
+    opacity: 0.85;
+  }
+
+  .header-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    color: var(--gold-light);
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #4ade80;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ===== NAV TABS ===== */
+  .nav-tabs {
+    background: var(--navy);
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .nav-tabs-inner {
+    display: flex;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+    gap: 4px;
+  }
+
+  .tab-btn {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.6);
+    font-family: 'Heebo', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .tab-btn:hover { color: var(--gold-light); }
+
+  .tab-btn.active {
+    color: var(--gold-light);
+    border-bottom-color: var(--gold);
+  }
+
+  /* ===== MAIN ===== */
+  .main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 28px 24px;
+  }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ===== CARDS ===== */
+  .card {
+    background: var(--white);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    border: 1px solid var(--gray-light);
+  }
+
+  .card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--gray-light);
+  }
+
+  .card-title .icon {
+    width: 32px; height: 32px;
+    background: var(--navy);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  /* ===== GRID ===== */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  @media (max-width: 700px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .header-status { display: none; }
+  }
+
+  /* ===== FORM ELEMENTS ===== */
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 6px;
+  }
+
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--gray-light);
+    border-radius: 8px;
+    font-family: 'Heebo', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: #faf9f7;
+    transition: border-color 0.2s;
+    direction: rtl;
+  }
+
+  .form-group input:focus,
+  .form-group textarea:focus,
+  .form-group select:focus {
+    outline: none;
+    border-color: var(--navy);
+    background: var(--white);
+  }
+
+  .form-group textarea {
+    min-height: 160px;
+    resize: vertical;
+    line-height: 1.7;
+  }
+
+  /* ===== BUTTONS ===== */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-family: 'Heebo', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--navy);
+    color: var(--white);
+  }
+  .btn-primary:hover { background: #0f2740; transform: translateY(-1px); }
+
+  .btn-gold {
+    background: var(--gold);
+    color: var(--white);
+  }
+  .btn-gold:hover { background: #b8962a; transform: translateY(-1px); }
+
+  .btn-success {
+    background: var(--success);
+    color: var(--white);
+  }
+  .btn-success:hover { background: #145c37; transform: translateY(-1px); }
+
+  .btn-danger {
+    background: var(--danger);
+    color: var(--white);
+  }
+  .btn-danger:hover { background: #a93226; }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--navy);
+    border: 1.5px solid var(--navy);
+  }
+  .btn-outline:hover { background: var(--navy); color: var(--white); }
+
+  .btn-sm { padding: 7px 14px; font-size: 13px; }
+  .btn-lg { padding: 13px 30px; font-size: 16px; }
+  .btn-full { width: 100%; }
+
+  .btn-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+
+  /* ===== PREVIEW BOX ===== */
+  .preview-box {
+    background: #faf9f7;
+    border: 1.5px solid var(--gray-light);
+    border-radius: 10px;
+    padding: 18px;
+    font-size: 14px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    direction: rtl;
+    min-height: 200px;
+    color: var(--text);
+    font-family: 'Heebo', sans-serif;
+  }
+
+  /* ===== STATS CARDS ===== */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  @media (max-width: 700px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .nav-tabs-inner { gap: 0; }
+    .tab-btn { padding: 10px 12px; font-size: 13px; }
+  }
+
+  .stat-card {
+    background: var(--white);
+    border-radius: 12px;
+    padding: 18px;
+    text-align: center;
+    border: 1px solid var(--gray-light);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+
+  .stat-number {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--navy);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--gray-mid);
+    font-weight: 500;
+  }
+
+  /* ===== HISTORY TABLE ===== */
+  .history-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .history-table th {
+    text-align: right;
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--gray-mid);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--gray-light);
+  }
+
+  .history-table td {
+    padding: 12px 14px;
+    font-size: 14px;
+    border-bottom: 1px solid var(--gray-light);
+    vertical-align: middle;
+  }
+
+  .history-table tr:last-child td { border-bottom: none; }
+  .history-table tr:hover td { background: var(--gray-bg); }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .badge-success { background: #d1fae5; color: #065f46; }
+  .badge-gold { background: #fef3c7; color: #92400e; }
+  .badge-navy { background: #dbeafe; color: #1e3a8a; }
+  .badge-gray { background: #f3f4f6; color: #374151; }
+
+  /* ===== WHATSAPP BOX ===== */
+  .whatsapp-preview {
+    background: #e8f5e9;
+    border: 1.5px solid #a5d6a7;
+    border-radius: 10px;
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    direction: rtl;
+    min-height: 120px;
+    color: #1b5e20;
+    font-family: 'Heebo', sans-serif;
+  }
+
+  /* ===== SETTINGS ===== */
+  .settings-section {
+    margin-bottom: 24px;
+  }
+
+  .settings-section h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--gray-light);
+  }
+
+  /* ===== ALERT ===== */
+  .alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  .alert-success {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+  }
+
+  .alert-error {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+  }
+
+  .alert.show { display: block; }
+
+  /* ===== TOGGLE ===== */
+  .toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--gray-light);
+  }
+
+  .toggle-row:last-child { border-bottom: none; }
+
+  .toggle-info { flex: 1; }
+  .toggle-info .toggle-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .toggle-info .toggle-desc { font-size: 12px; color: var(--gray-mid); margin-top: 2px; }
+
+  .toggle {
+    position: relative;
+    width: 44px; height: 24px;
+    flex-shrink: 0;
+    margin-right: 12px;
+  }
+
+  .toggle input { opacity: 0; width: 0; height: 0; }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #ccc;
+    border-radius: 24px;
+    transition: 0.3s;
+  }
+
+  .toggle-slider:before {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    left: 3px; bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.3s;
+  }
+
+  .toggle input:checked + .toggle-slider { background: var(--navy); }
+  .toggle input:checked + .toggle-slider:before { transform: translateX(20px); }
+
+  /* ===== SECTION HEADER ===== */
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .section-header h2 {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--navy);
+  }
+
+  .section-header p {
+    font-size: 13px;
+    color: var(--gray-mid);
+    margin-top: 2px;
+  }
+
+  /* ===== DIVIDER ===== */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--gray-light);
+    margin: 20px 0;
+  }
+
+  /* ===== ZMAN ROW ===== */
+  .zman-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px dotted var(--gray-light);
+  }
+
+  .zman-row:last-child { border-bottom: none; }
+  .zman-name { font-size: 14px; font-weight: 600; color: var(--text); }
+  .zman-note { font-size: 11px; color: var(--gray-mid); margin-top: 2px; }
+  .zman-time { font-size: 18px; font-weight: 800; color: var(--navy); direction: ltr; }
+
+  /* ===== LOADING ===== */
+  .loading {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-inner">
+    <div class="header-logo">
+      <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAQDAwMDAgQDAwMEBAQFBgoGBgUFBgwICQcKDgwPDg4MDQ0PERYTDxAVEQ0NExoTFRcYGRkZDxIbHRsYHRYYGRj/2wBDAQQEBAYFBgsGBgsYEA0QGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgY..." alt="לוגו" onerror="this.style.display='none'">
+      <div class="header-title">
+        <h1>בית כנסת הרמח"ל מיצד</h1>
+        <p>מערכת ניהול הודעות</p>
+      </div>
+    </div>
+    <div class="header-status">
+      <div class="status-dot"></div>
+      מערכת פעילה
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <div class="nav-tabs-inner">
+      <button class="tab-btn active" onclick="switchTab('dashboard')">לוח בקרה</button>
+      <button class="tab-btn" onclick="switchTab('shabbat')">זמני שבת</button>
+      <button class="tab-btn" onclick="switchTab('custom')">הודעה חופשית</button>
+      <button class="tab-btn" onclick="switchTab('history')">היסטוריה</button>
+      <button class="tab-btn" onclick="switchTab('settings')">הגדרות</button>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- ===== DASHBOARD ===== -->
+  <div id="tab-dashboard" class="tab-panel active">
+    <div class="section-header">
+      <div>
+        <h2>לוח בקרה</h2>
+        <p>סקירה כללית של המערכת</p>
+      </div>
+      <button class="btn btn-primary" onclick="switchTab('shabbat')">
+        שלח זמני שבת →
+      </button>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number" id="stat-total">0</div>
+        <div class="stat-label">הודעות שנשלחו</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="stat-this-month">0</div>
+        <div class="stat-label">החודש</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="stat-recipients">50</div>
+        <div class="stat-label">נמענים</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="stat-next-auto">ד'</div>
+        <div class="stat-label">שליחה אוטומטית</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- זמני שבת הקרובה -->
+      <div class="card">
+        <div class="card-title">
+          <div class="icon">🕯️</div>
+          זמני שבת הקרובה
+        </div>
+        <div id="dashboard-zmanim">
+          <div style="text-align:center;color:var(--gray-mid);padding:20px 0;">
+            <div style="font-size:32px;margin-bottom:8px;">🔄</div>
+            לחץ לטעינת זמנים
+          </div>
+        </div>
+        <button class="btn btn-outline btn-full" style="margin-top:14px;" onclick="loadZmanim()">
+          טען זמנים מהאינטרנט
+        </button>
+      </div>
+
+      <!-- פעולות מהירות -->
+      <div class="card">
+        <div class="card-title">
+          <div class="icon">⚡</div>
+          פעולות מהירות
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button class="btn btn-primary btn-full" onclick="switchTab('shabbat')">
+            📅 שלח זמני שבת
+          </button>
+          <button class="btn btn-gold btn-full" onclick="switchTab('custom')">
+            ✏️ שלח הודעה חופשית
+          </button>
+          <button class="btn btn-outline btn-full" onclick="switchTab('history')">
+            📋 צפה בהיסטוריה
+          </button>
+          <button class="btn btn-outline btn-full" onclick="switchTab('settings')">
+            ⚙️ הגדרות מערכת
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- הודעה אחרונה -->
+    <div class="card">
+      <div class="card-title">
+        <div class="icon">📨</div>
+        הודעה אחרונה שנשלחה
+      </div>
+      <div id="last-message-preview" class="preview-box" style="min-height:80px;">
+        אין הודעות עדיין
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SHABBAT ZMANIM ===== -->
+  <div id="tab-shabbat" class="tab-panel">
+    <div class="section-header">
+      <div>
+        <h2>זמני שבת</h2>
+        <p>חישוב אוטומטי ושליחה לרשימת התפוצה</p>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- הגדרות שבת -->
+      <div class="card">
+        <div class="card-title">
+          <div class="icon">⚙️</div>
+          הגדרות
+        </div>
+
+        <div class="form-group">
+          <label>פרשת השבוע</label>
+          <input type="text" id="parasha-input" placeholder="שם הפרשה (אוטומטי)">
+        </div>
+
+        <div class="form-group">
+          <label>תאריך שבת</label>
+          <input type="date" id="shabbat-date">
+        </div>
+
+        <div class="form-group">
+          <label>הערה מיוחדת (אופציונלי)</label>
+          <input type="text" id="shabbat-note" placeholder="לדוגמה: שבת מברכים, פרשת שקלים...">
+        </div>
+
+        <button class="btn btn-primary btn-full" onclick="loadZmanim()">
+          🔄 חשב זמנים אוטומטית
+        </button>
+      </div>
+
+      <!-- תצוגת זמנים -->
+      <div class="card">
+        <div class="card-title">
+          <div class="icon">🕐</div>
+          זמני התפילות
+        </div>
+        <div id="zmanim-display">
+          <div style="text-align:center;color:var(--gray-mid);padding:30px 0;">
+            לחץ "חשב זמנים" לטעינה
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- עריכת הודעה -->
+    <div class="card">
+      <div class="card-title">
+        <div class="icon">✏️</div>
+        עריכת ההודעה לפני שליחה
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <div class="form-group">
+            <label>טקסט ההודעה (לוואטסאפ ומייל)</label>
+            <textarea id="shabbat-message" placeholder="הזמנים יוצגו כאן לאחר החישוב..."></textarea>
+          </div>
+        </div>
+        <div>
+          <label style="display:block;font-size:13px;font-weight:600;color:var(--navy);margin-bottom:6px;">תצוגה מקדימה</label>
+          <div class="preview-box" id="shabbat-preview" style="min-height:170px;">
+            ההודעה תופיע כאן...
+          </div>
+        </div>
+      </div>
+
+      <div id="shabbat-alert" class="alert"></div>
+
+      <div class="btn-group">
+        <button class="btn btn-success btn-lg" onclick="sendShabbat('email')">
+          📧 שלח מייל
+        </button>
+        <button class="btn btn-gold btn-lg" onclick="copyWhatsapp('shabbat')">
+          📱 העתק לוואטסאפ
+        </button>
+        <button class="btn btn-primary btn-lg" onclick="sendShabbat('both')">
+          🚀 שלח הכל
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CUSTOM MESSAGE ===== -->
+  <div id="tab-custom" class="tab-panel">
+    <div class="section-header">
+      <div>
+        <h2>הודעה חופשית</h2>
+        <p>שליחת הודעות מיוחדות — חגים, אירועים, עדכונים</p>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">
+          <div class="icon">✏️</div>
+          כתיבת ההודעה
+        </div>
+
+        <div class="form-group">
+          <label>נושא (למייל)</label>
+          <input type="text" id="custom-subject" placeholder="לדוגמה: זמני תפילות לחג הסוכות">
+        </div>
+
+        <div class="form-group">
+          <label>תוכן ההודעה</label>
+          <textarea id="custom-message" placeholder="כתוב כאן את ההודעה..." oninput="updateCustomPreview()"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>שלח אל</label>
+          <select id="custom-recipients">
+            <option value="all">כל הרשימה (מייל + וואטסאפ)</option>
+            <option value="email">מייל בלבד</option>
+            <option value="whatsapp">וואטסאפ בלבד</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>תבניות מוכנות</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+            <button class="btn btn-outline btn-sm" onclick="loadTemplate('chag')">חג</button>
+            <button class="btn btn-outline btn-sm" onclick="loadTemplate('event')">אירוע</button>
+            <button class="btn btn-outline btn-sm" onclick="loadTemplate('reminder')">תזכורת</button>
+            <button class="btn btn-outline btn-sm" onclick="loadTemplate('shiur')">שיעור</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <div class="icon">👁️</div>
+          תצוגה מקדימה
+        </div>
+        <div class="preview-box" id="custom-preview" style="min-height:280px;">
+          ההודעה תופיע כאן...
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div id="custom-alert" class="alert"></div>
+      <div class="btn-group">
+        <button class="btn btn-success btn-lg" onclick="sendCustom('email')">
+          📧 שלח מייל
+        </button>
+        <button class="btn btn-gold btn-lg" onclick="copyWhatsapp('custom')">
+          📱 העתק לוואטסאפ
+        </button>
+        <button class="btn btn-primary btn-lg" onclick="sendCustom('both')">
+          🚀 שלח הכל
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HISTORY ===== -->
+  <div id="tab-history" class="tab-panel">
+    <div class="section-header">
+      <div>
+        <h2>היסטוריית שליחות</h2>
+        <p>כל ההודעות ששלחת</p>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="clearHistory()">נקה היסטוריה</button>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div id="history-empty" style="text-align:center;padding:40px;color:var(--gray-mid);display:none;">
+        <div style="font-size:48px;margin-bottom:12px;">📭</div>
+        <div>אין הודעות בהיסטוריה</div>
+      </div>
+      <table class="history-table" id="history-table">
+        <thead>
+          <tr>
+            <th>תאריך</th>
+            <th>נושא</th>
+            <th>סוג</th>
+            <th>ערוץ</th>
+            <th>פעולות</th>
+          </tr>
+        </thead>
+        <tbody id="history-body">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== SETTINGS ===== -->
+  <div id="tab-settings" class="tab-panel">
+    <div class="section-header">
+      <div>
+        <h2>הגדרות המערכת</h2>
+        <p>שינוי פרמטרים ומידע</p>
+      </div>
+      <button class="btn btn-primary" onclick="saveSettings()">שמור שינויים</button>
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-title">
+            <div class="icon">📍</div>
+            פרטי בית הכנסת
+          </div>
+          <div class="form-group">
+            <label>שם בית הכנסת</label>
+            <input type="text" id="setting-shul" value='בית כנסת הרמח"ל מיצד'>
+          </div>
+          <div class="form-group">
+            <label>כתובת מייל לשליחה</label>
+            <input type="email" id="setting-email" placeholder="metzad-chevra@googlegroups.com">
+          </div>
+          <div class="form-group">
+            <label>מצב (בדיקה / פרודקשן)</label>
+            <select id="setting-mode">
+              <option value="test">בדיקה — שולח ל-4103353@gmail.com</option>
+              <option value="prod">פרודקשן — שולח לרשימת התפוצה</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <div class="icon">⏱️</div>
+            זמני חישוב (דקות)
+          </div>
+          <div class="form-group">
+            <label>מנחה — לפני שקיעה</label>
+            <input type="number" id="setting-mincha" value="20" min="5" max="60">
+          </div>
+          <div class="form-group">
+            <label>מעריב ליל שבת — אחרי שקיעה</label>
+            <input type="number" id="setting-maariv" value="35" min="5" max="60">
+          </div>
+          <div class="form-group">
+            <label>שחרית — לפני סוף ק"ש</label>
+            <input type="number" id="setting-shacharit" value="40" min="5" max="60">
+          </div>
+          <div class="form-group">
+            <label>מנחה שבת — לפני שקיעה</label>
+            <input type="number" id="setting-mincha-shab" value="40" min="5" max="60">
+          </div>
+          <div class="form-group">
+            <label>מעריב מוצ"ש — אחרי צאת שבת</label>
+            <input type="number" id="setting-motzash" value="10" min="5" max="30">
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-title">
+            <div class="icon">🔔</div>
+            אוטומציה
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-title">שליחה אוטומטית כל יום חמישי</div>
+              <div class="toggle-desc">Apps Script ישלח זמנים ב-19:00</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-auto" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-title">התרעה לפני חגים</div>
+              <div class="toggle-desc">מייל התראה כשחג חל בסוף שבוע</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-holiday" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-title">אישור שליחה</div>
+              <div class="toggle-desc">שאל לפני כל שליחה</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-confirm" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <div class="icon">🔗</div>
+            חיבור Apps Script
+          </div>
+          <div class="form-group">
+            <label>כתובת Web App URL</label>
+            <input type="url" id="setting-webhook" placeholder="https://script.google.com/macros/s/...">
+            <div style="font-size:11px;color:var(--gray-mid);margin-top:4px;">
+              פרסם את ה-Apps Script כ-Web App וכנס כאן את הכתובת
+            </div>
+          </div>
+          <button class="btn btn-outline btn-full" onclick="testWebhook()">
+            בדוק חיבור
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <div class="icon">💾</div>
+            ניהול נתונים
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <button class="btn btn-outline btn-full" onclick="exportHistory()">
+              ייצא היסטוריה (JSON)
+            </button>
+            <button class="btn btn-danger btn-full" onclick="resetAll()">
+              איפוס מלא
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Modal -->
+<div id="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:16px;padding:28px;max-width:420px;width:90%;direction:rtl;">
+    <h3 id="modal-title" style="font-size:18px;font-weight:700;color:var(--navy);margin-bottom:10px;"></h3>
+    <p id="modal-body" style="font-size:14px;color:var(--gray-mid);margin-bottom:20px;line-height:1.6;"></p>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-outline" onclick="closeModal()">ביטול</button>
+      <button class="btn btn-primary" id="modal-confirm" onclick="">אישור</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== STATE =====
+const STATE = {
+  zmanim: null,
+  history: JSON.parse(localStorage.getItem('msg_history') || '[]'),
+  settings: JSON.parse(localStorage.getItem('msg_settings') || JSON.stringify({
+    shul: 'בית כנסת הרמח"ל מיצד',
+    email: 'metzad-chevra@googlegroups.com',
+    mode: 'test',
+    webhook: '',
+    mincha: 20, maariv: 35, shacharit: 40, minchaShab: 40, motzash: 10,
+    autoSend: true, holidayAlert: true, confirmSend: true
+  }))
+};
+
+// ===== TABS =====
+function switchTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  event.currentTarget && event.currentTarget.classList.add('active');
+  // find and activate the right button
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.getAttribute('onclick') && b.getAttribute('onclick').includes(tab)) {
+      b.classList.add('active');
+    }
+  });
+  if (tab === 'history') renderHistory();
+  if (tab === 'dashboard') updateDashboard();
+}
+
+// ===== TIME HELPERS =====
+function parseTimeStr(iso) {
+  if (!iso) return '--:--';
+  const d = new Date(iso);
+  return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+}
+
+function addMins(t, m) {
+  if (t === '--:--') return '--:--';
+  const [h, min] = t.split(':').map(Number);
+  const total = h * 60 + min + m;
+  const nh = Math.floor((total/60) % 24);
+  const nm = total % 60;
+  return nh.toString().padStart(2,'0') + ':' + nm.toString().padStart(2,'0');
+}
+
+function subMins(t, m) { return addMins(t, -m); }
+
+// ===== LOAD ZMANIM =====
+async function loadZmanim() {
+  const btn = event.currentTarget;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading"></span> טוען...';
+
+  try {
+    const dateInput = document.getElementById('shabbat-date');
+    let date;
+    if (dateInput && dateInput.value) {
+      date = dateInput.value;
+    } else {
+      const today = new Date();
+      const dow = today.getDay();
+      const daysUntilSat = (6 - dow + 7) % 7 || 7;
+      const shabbat = new Date(today);
+      shabbat.setDate(today.getDate() + daysUntilSat);
+      date = shabbat.toISOString().split('T')[0];
+      if (dateInput) dateInput.value = date;
+    }
+
+    const url = `https://www.hebcal.com/zmanim?cfg=json&latitude=31.6219&longitude=35.1469&tzid=Asia/Jerusalem&date=${date}&sec=1`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    const t = data.times;
+
+    const shkia = parseTimeStr(t.sunset);
+    const tzet = parseTimeStr(t.tzeit85deg || t.nightfall);
+    const sofKsh = parseTimeStr(t.sofZmanShma);
+    const s = STATE.settings;
+    const mincha = subMins(shkia, s.mincha);
+    const maarivLeil = addMins(shkia, s.maariv);
+    const shacharit = subMins(sofKsh, s.shacharit);
+    const minchaShab = subMins(shkia, s.minchaShab);
+    const avotBanim = subMins(minchaShab, 40);
+    const maarivMotzash = addMins(tzet, s.motzash);
+
+    STATE.zmanim = { shkia, tzet, sofKsh, mincha, maarivLeil, shacharit, minchaShab, avotBanim, maarivMotzash };
+
+    // Get parasha
+    let parasha = document.getElementById('parasha-input')?.value || '';
+    if (!parasha) {
+      try {
+        const [y, m, d] = date.split('-');
+        const pResp = await fetch(`https://www.hebcal.com/hebcal?v=1&cfg=json&maj=off&min=off&F=on&year=${y}&month=${m}&ss=off&mf=off&c=off&geo=none&m=0&s=on`);
+        const pData = await pResp.json();
+        const pItem = (pData.items||[]).find(i => i.date === date && i.category === 'parashat');
+        if (pItem) parasha = translateParasha(pItem.title);
+      } catch(e) {}
+    }
+
+    renderZmanim(STATE.zmanim, parasha);
+    buildShabbatMessage(STATE.zmanim, parasha);
+
+  } catch(e) {
+    showAlert('shabbat', 'שגיאה בטעינת הזמנים: ' + e.message, 'error');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '🔄 חשב זמנים אוטומטית';
+}
+
+function renderZmanim(z, parasha) {
+  const rows = [
+    { name: 'מנחה', note: '20 דק׳ לפני השקיעה', time: z.mincha },
+    { name: 'שקיעה', note: '', time: z.shkia },
+    { name: 'קבלת שבת', note: '', time: '—' },
+    { name: 'מעריב ליל שבת', note: '35 דק׳ אחרי השקיעה', time: z.maarivLeil },
+    { name: 'שחרית', note: '40 דק׳ לפני סוף ק"ש', time: z.shacharit },
+    { name: 'סוף זמן ק"ש (גר"א)', note: '', time: z.sofKsh },
+    { name: 'אבות ובנים', note: '40 דק׳ לפני מנחה', time: z.avotBanim },
+    { name: 'מנחה של שבת', note: '40 דק׳ לפני השקיעה', time: z.minchaShab },
+    { name: 'מעריב מוצאי שבת', note: '10 דק׳ אחרי צאת שבת', time: z.maarivMotzash },
+  ];
+
+  const html = rows.map(r => `
+    <div class="zman-row">
+      <div>
+        <div class="zman-name">${r.name}</div>
+        ${r.note ? `<div class="zman-note">${r.note}</div>` : ''}
+      </div>
+      <div class="zman-time">${r.time}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('zmanim-display').innerHTML = html;
+  document.getElementById('dashboard-zmanim').innerHTML = html;
+}
+
+function buildShabbatMessage(z, parasha) {
+  const note = document.getElementById('shabbat-note')?.value;
+  const msg = `🕍 זמני תפילות לשבת פרשת ${parasha || '[פרשה]'}
+${note ? '⭐ ' + note + '\n' : ''}📍 בית כנסת הרמח"ל מיצד
+━━━━━━━━━━━━━━━━━━━━
+
+מנחה: *${z.mincha}* (20 דק' לפני השקיעה)
+שקיעה: *${z.shkia}*
+קבלת שבת בנעימה 🎶
+מעריב ליל שבת: *${z.maarivLeil}* (35 דק' אחרי השקיעה)
+
+שחרית: *${z.shacharit}* (40 דק' לפני סוף זמן ק"ש)
+סוף זמן ק"ש (גר"א): *${z.sofKsh}*
+קידושא רבא לאחר התפילה 🍷
+
+אבות ובנים: *${z.avotBanim}* (40 דק' לפני מנחה)
+מנחה של שבת: *${z.minchaShab}* (40 דק' לפני השקיעה)
+מעריב מוצאי שבת: *${z.maarivMotzash}* (10 דק' אחרי צאת שבת)
+━━━━━━━━━━━━━━━━━━━━
+שבת שלום ומבורך! ✨`;
+
+  const ta = document.getElementById('shabbat-message');
+  if (ta) { ta.value = msg; updateShabbatPreview(); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const ta = document.getElementById('shabbat-message');
+  if (ta) ta.addEventListener('input', updateShabbatPreview);
+});
+
+function updateShabbatPreview() {
+  const msg = document.getElementById('shabbat-message')?.value || '';
+  const preview = document.getElementById('shabbat-preview');
+  if (preview) preview.textContent = msg;
+}
+
+function updateCustomPreview() {
+  const msg = document.getElementById('custom-message')?.value || '';
+  const preview = document.getElementById('custom-preview');
+  if (preview) preview.textContent = msg;
+}
+
+// ===== SEND =====
+async function sendShabbat(channel) {
+  const msg = document.getElementById('shabbat-message')?.value;
+  if (!msg || msg.trim() === '') { showAlert('shabbat', 'יש לחשב זמנים תחילה', 'error'); return; }
+
+  const parasha = document.getElementById('parasha-input')?.value || 'השבוע';
+  const subject = `זמני תפילות לשבת פרשת ${parasha} | בית כנסת הרמח"ל מיצד`;
+
+  if (STATE.settings.confirmSend) {
+    const channels = channel === 'both' ? 'מייל ווואטסאפ' : channel === 'email' ? 'מייל' : 'וואטסאפ';
+    if (!confirm(`לשלוח ב${channels}?`)) return;
+  }
+
+  await doSend(channel, subject, msg, 'שבת');
+}
+
+async function sendCustom(channel) {
+  const msg = document.getElementById('custom-message')?.value;
+  const subject = document.getElementById('custom-subject')?.value || 'הודעה מבית הכנסת';
+  if (!msg || msg.trim() === '') { showAlert('custom', 'יש לכתוב הודעה', 'error'); return; }
+
+  if (STATE.settings.confirmSend) {
+    const channels = channel === 'both' ? 'מייל ווואטסאפ' : channel === 'email' ? 'מייל' : 'וואטסאפ';
+    if (!confirm(`לשלוח ב${channels}?`)) return;
+  }
+
+  await doSend(channel, subject, msg, 'חופשי');
+}
+
+async function doSend(channel, subject, msg, type) {
+  const alertId = type === 'שבת' ? 'shabbat' : 'custom';
+  const webhook = STATE.settings.webhook;
+
+  if (channel === 'email' || channel === 'both') {
+    if (webhook) {
+      try {
+        await fetch(webhook + '?action=send&subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(msg));
+        showAlert(alertId, '✅ מייל נשלח בהצלחה!', 'success');
+      } catch(e) {
+        showAlert(alertId, '⚠️ לא ניתן להתחבר ל-Apps Script. בדוק את כתובת ה-Webhook.', 'error');
+      }
+    } else {
+      showAlert(alertId, '✅ (בדיקה) מייל היה נשלח ל: ' + (STATE.settings.mode === 'test' ? '4103353@gmail.com' : STATE.settings.email), 'success');
+    }
+  }
+
+  if (channel === 'whatsapp' || channel === 'both') {
+    copyToClipboard(msg);
+    showAlert(alertId, '📱 הטקסט הועתק! פתח וואטסאפ Web והדבק בקבוצה.', 'success');
+  }
+
+  saveToHistory(subject, msg, channel, type);
+  updateDashboard();
+}
+
+// ===== COPY WHATSAPP =====
+function copyWhatsapp(source) {
+  const msg = source === 'shabbat'
+    ? document.getElementById('shabbat-message')?.value
+    : document.getElementById('custom-message')?.value;
+  if (!msg) return;
+  copyToClipboard(msg);
+  const alertId = source === 'shabbat' ? 'shabbat' : 'custom';
+  showAlert(alertId, '📱 הטקסט הועתק ללוח! פתח וואטסאפ Web והדבק בקבוצה.', 'success');
+}
+
+function copyToClipboard(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text);
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+}
+
+// ===== HISTORY =====
+function saveToHistory(subject, msg, channel, type) {
+  const entry = {
+    id: Date.now(),
+    date: new Date().toLocaleString('he-IL'),
+    subject, msg, channel, type
+  };
+  STATE.history.unshift(entry);
+  if (STATE.history.length > 100) STATE.history = STATE.history.slice(0, 100);
+  localStorage.setItem('msg_history', JSON.stringify(STATE.history));
+}
+
+function renderHistory() {
+  const tbody = document.getElementById('history-body');
+  const empty = document.getElementById('history-empty');
+  const table = document.getElementById('history-table');
+
+  if (!STATE.history.length) {
+    empty.style.display = 'block';
+    table.style.display = 'none';
+    return;
+  }
+
+  empty.style.display = 'none';
+  table.style.display = 'table';
+
+  tbody.innerHTML = STATE.history.map(h => `
+    <tr>
+      <td style="color:var(--gray-mid);font-size:13px;">${h.date}</td>
+      <td style="font-weight:600;">${h.subject}</td>
+      <td><span class="badge ${h.type === 'שבת' ? 'badge-navy' : 'badge-gold'}">${h.type}</span></td>
+      <td><span class="badge badge-success">${h.channel === 'both' ? 'מייל + וואטסאפ' : h.channel === 'email' ? 'מייל' : 'וואטסאפ'}</span></td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="viewMessage(${h.id})">צפה</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function viewMessage(id) {
+  const entry = STATE.history.find(h => h.id === id);
+  if (!entry) return;
+  showModal(entry.subject, entry.msg);
+}
+
+function clearHistory() {
+  if (!confirm('למחוק את כל ההיסטוריה?')) return;
+  STATE.history = [];
+  localStorage.removeItem('msg_history');
+  renderHistory();
+}
+
+// ===== TEMPLATES =====
+function loadTemplate(type) {
+  const templates = {
+    chag: `🎉 חג שמח לכל בית ישראל!
+
+📍 בית כנסת הרמח"ל מיצד
+
+זמני תפילות לחג:
+מנחה ועשרב: 
+קבלת החג:
+שחרית:
+מוסף:
+
+חג כשר ושמח! ✨`,
+    event: `📢 הזמנה מיוחדת
+
+📍 בית כנסת הרמח"ל מיצד
+📅 תאריך: 
+⏰ שעה: 
+📌 נושא: 
+
+מוזמנים הכל!`,
+    reminder: `🔔 תזכורת
+
+מזכירים לציבור המתפללים:
+
+
+
+בית כנסת הרמח"ל מיצד`,
+    shiur: `📖 שיעור תורה
+
+📍 בית כנסת הרמח"ל מיצד
+👤 מגיש: 
+📅 תאריך: 
+⏰ שעה: 
+📌 נושא: 
+
+כל הציבור מוזמן!`
+  };
+
+  const msg = templates[type] || '';
+  document.getElementById('custom-message').value = msg;
+  updateCustomPreview();
+}
+
+// ===== SETTINGS =====
+function saveSettings() {
+  STATE.settings = {
+    shul: document.getElementById('setting-shul').value,
+    email: document.getElementById('setting-email').value,
+    mode: document.getElementById('setting-mode').value,
+    webhook: document.getElementById('setting-webhook').value,
+    mincha: +document.getElementById('setting-mincha').value,
+    maariv: +document.getElementById('setting-maariv').value,
+    shacharit: +document.getElementById('setting-shacharit').value,
+    minchaShab: +document.getElementById('setting-mincha-shab').value,
+    motzash: +document.getElementById('setting-motzash').value,
+    autoSend: document.getElementById('toggle-auto').checked,
+    holidayAlert: document.getElementById('toggle-holiday').checked,
+    confirmSend: document.getElementById('toggle-confirm').checked,
+  };
+  localStorage.setItem('msg_settings', JSON.stringify(STATE.settings));
+  alert('✅ ההגדרות נשמרו!');
+}
+
+function testWebhook() {
+  const url = document.getElementById('setting-webhook').value;
+  if (!url) { alert('יש להזין כתובת Webhook'); return; }
+  fetch(url + '?action=test')
+    .then(r => alert('✅ חיבור תקין!'))
+    .catch(e => alert('❌ לא ניתן להתחבר: ' + e.message));
+}
+
+function exportHistory() {
+  const data = JSON.stringify(STATE.history, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'history_' + new Date().toISOString().split('T')[0] + '.json';
+  a.click();
+}
+
+function resetAll() {
+  if (!confirm('למחוק את כל הנתונים?')) return;
+  localStorage.clear();
+  location.reload();
+}
+
+// ===== DASHBOARD =====
+function updateDashboard() {
+  document.getElementById('stat-total').textContent = STATE.history.length;
+  const thisMonth = STATE.history.filter(h => {
+    const d = new Date(h.id);
+    const now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
+  document.getElementById('stat-this-month').textContent = thisMonth;
+
+  if (STATE.history.length > 0) {
+    document.getElementById('last-message-preview').textContent = STATE.history[0].msg;
+  }
+}
+
+// ===== MODAL =====
+function showModal(title, body) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent = body;
+  const overlay = document.getElementById('modal-overlay');
+  overlay.style.display = 'flex';
+  document.getElementById('modal-confirm').style.display = 'none';
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').style.display = 'none';
+  document.getElementById('modal-confirm').style.display = 'block';
+}
+
+// ===== ALERT =====
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id + '-alert');
+  if (!el) return;
+  el.className = 'alert alert-' + (type === 'success' ? 'success' : 'error') + ' show';
+  el.textContent = msg;
+  setTimeout(() => el.classList.remove('show'), 5000);
+}
+
+// ===== PARASHA TRANSLATE =====
+function translateParasha(n) {
+  const t = {
+    "Bereshit":"בראשית","Noach":"נח","Lech-Lecha":"לך לך","Vayera":"וירא",
+    "Chayei Sara":"חיי שרה","Toldot":"תולדות","Vayetzei":"ויצא","Vayishlach":"וישלח",
+    "Vayeshev":"וישב","Miketz":"מקץ","Vayigash":"ויגש","Vayechi":"ויחי",
+    "Shemot":"שמות","Vaera":"וארא","Bo":"בא","Beshalach":"בשלח",
+    "Yitro":"יתרו","Mishpatim":"משפטים","Terumah":"תרומה","Tetzaveh":"תצוה",
+    "Ki Tisa":"כי תשא","Vayakhel":"ויקהל","Pekudei":"פקודי","Vayakhel-Pekudei":"ויקהל-פקודי",
+    "Vayikra":"ויקרא","Tzav":"צו","Shmini":"שמיני","Tazria":"תזריע",
+    "Metzora":"מצורע","Tazria-Metzora":"תזריע-מצורע","Achrei Mot":"אחרי מות",
+    "Kedoshim":"קדושים","Achrei Mot-Kedoshim":"אחרי מות-קדושים","Emor":"אמור",
+    "Behar":"בהר","Bechukotai":"בחוקותי","Behar-Bechukotai":"בהר-בחוקותי",
+    "Bamidbar":"במדבר","Nasso":"נשא","Beha\'alotcha":"בהעלותך","Sh\'lach":"שלח לך",
+    "Korach":"קרח","Chukat":"חקת","Balak":"בלק","Pinchas":"פינחס",
+    "Matot":"מטות","Masei":"מסעי","Matot-Masei":"מטות-מסעי","Devarim":"דברים",
+    "Vaetchanan":"ואתחנן","Eikev":"עקב","Re\'eh":"ראה","Shoftim":"שופטים",
+    "Ki Teitzei":"כי תצא","Ki Tavo":"כי תבוא","Nitzavim":"נצבים",
+    "Vayeilech":"וילך","Nitzavim-Vayeilech":"נצבים-וילך","Ha\'Azinu":"האזינו",
+    "Vezot Haberakhah":"וזאת הברכה"
+  };
+  for (const [e,h] of Object.entries(t)) {
+    if (n && (n.includes(e) || e.includes(n))) return h;
+  }
+  return n || '';
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  updateDashboard();
+
+  // load settings into form
+  const s = STATE.settings;
+  const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
+  setVal('setting-shul', s.shul);
+  setVal('setting-email', s.email);
+  setVal('setting-mode', s.mode);
+  setVal('setting-webhook', s.webhook);
+  setVal('setting-mincha', s.mincha);
+  setVal('setting-maariv', s.maariv);
+  setVal('setting-shacharit', s.shacharit);
+  setVal('setting-mincha-shab', s.minchaShab);
+  setVal('setting-motzash', s.motzash);
+
+  const today = new Date();
+  const dow = today.getDay();
+  const daysUntilSat = (6 - dow + 7) % 7 || 7;
+  const shabbat = new Date(today);
+  shabbat.setDate(today.getDate() + daysUntilSat);
+  const dateEl = document.getElementById('shabbat-date');
+  if (dateEl) dateEl.value = shabbat.toISOString().split('T')[0];
+});
+</script>
+</body>
+</html>
