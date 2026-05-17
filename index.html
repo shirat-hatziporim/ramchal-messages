@@ -1110,6 +1110,11 @@ async function loadZmanim() {
       } catch(e) {}
     }
 
+    // מלא את שדה הפרשה
+    if (parasha) {
+      const parashaInput = document.getElementById('parasha-input');
+      if (parashaInput && !parashaInput.value) parashaInput.value = parasha;
+    }
     renderZmanim(STATE.zmanim, parasha);
     buildShabbatMessage(STATE.zmanim, parasha);
 
@@ -1150,7 +1155,9 @@ function renderZmanim(z, parasha) {
 
 function buildShabbatMessage(z, parasha) {
   const note = document.getElementById('shabbat-note')?.value;
-  const msg = 'זמני תפילות לשבת פרשת ' + (parasha || '[פרשה]') + '\n'
+  // קח פרשה מהשדה אם לא הועברה
+  const parashaFinal = parasha || document.getElementById('parasha-input')?.value || '[פרשה]';
+  const msg = 'זמני תפילות לשבת פרשת ' + parashaFinal + '\n'
     + (note ? note + '\n' : '')
     + 'בית כנסת הרמח"ל מיצד\n'
     + '----------------------------\n'
