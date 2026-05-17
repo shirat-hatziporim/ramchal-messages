@@ -784,10 +784,10 @@
                   </div>
                 </div>
                 <div style="flex:1;min-width:120px;">
-                  <label style="font-size:11px;color:var(--gray-mid);display:block;margin-bottom:3px;">סוף זמן קש גרא</label>
+                  <label style="font-size:11px;color:var(--gray-mid);display:block;margin-bottom:3px;">סוף זמן ק"ש גר"א</label>
                   <div style="display:flex;align-items:center;gap:6px;">
                     <span id="cz-ksh" style="font-size:16px;font-weight:800;color:var(--navy);">--:--</span>
-                    <button class="btn btn-outline btn-sm" onclick="insertZman('סוף זמן קש (גרא)', 'cz-ksh')" style="padding:3px 8px;font-size:11px;">הכנס</button>
+                    <button class="btn btn-outline btn-sm" onclick="insertZman('סוף זמן ק"ש (גר"א)', 'cz-ksh')" style="padding:3px 8px;font-size:11px;">הכנס</button>
                   </div>
                 </div>
                 <div style="flex:1;min-width:120px;">
@@ -1229,8 +1229,8 @@ function buildShabbatMessage(z, parasha) {
     + 'קבלת שבת בנעימה\n'
     + 'מעריב ליל שבת: ' + z.maarivLeil + ' (35 דק\' אחרי השקיעה)\n'
     + '\n'
-    + 'שחרית: ' + z.shacharit + ' (40 דק\' לפני סוף זמן קש)\n'
-    + 'סוף זמן קש (גרא): ' + z.sofKsh + '\n'
+    + 'שחרית: ' + z.shacharit + ' (40 דק\' לפני סוף זמן ק"ש)\n'
+    + 'סוף זמן ק"ש (גר"א): ' + z.sofKsh + '\n'
     + 'קידושא רבא לאחר התפילה\n'
     + '\n'
     + 'אבות ובנים: ' + z.avotBanim + ' (40 דק\' לפני מנחה)\n'
@@ -1558,7 +1558,7 @@ function insertAllZmanim() {
   const lines = [
     'שקיעה: ' + _customZmanim.shkia,
     'צאת שבת: ' + _customZmanim.tzet,
-    'סוף זמן קש (גרא): ' + _customZmanim.ksh,
+    'סוף זמן ק"ש (גר"א): ' + _customZmanim.ksh,
   ].join('\n') + '\n';
 
   const pos = ta.selectionStart || ta.value.length;
