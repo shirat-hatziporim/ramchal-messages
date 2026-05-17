@@ -773,28 +773,28 @@
                   <label style="font-size:11px;color:var(--gray-mid);display:block;margin-bottom:3px;">שקיעה</label>
                   <div style="display:flex;align-items:center;gap:6px;">
                     <span id="cz-shkia" style="font-size:16px;font-weight:800;color:var(--navy);">--:--</span>
-                    <button class="btn btn-outline btn-sm" onclick="insertZman('שקיעה', 'cz-shkia')" style="padding:3px 8px;font-size:11px;">הכנס</button>
+                    <button class="btn btn-outline btn-sm" onclick="insertZmanById('cz-shkia')" style="padding:3px 8px;font-size:11px;">הכנס</button>
                   </div>
                 </div>
                 <div style="flex:1;min-width:120px;">
                   <label style="font-size:11px;color:var(--gray-mid);display:block;margin-bottom:3px;">צאת שבת (8.5°)</label>
                   <div style="display:flex;align-items:center;gap:6px;">
                     <span id="cz-tzet" style="font-size:16px;font-weight:800;color:var(--navy);">--:--</span>
-                    <button class="btn btn-outline btn-sm" onclick="insertZman('צאת שבת', 'cz-tzet')" style="padding:3px 8px;font-size:11px;">הכנס</button>
+                    <button class="btn btn-outline btn-sm" onclick="insertZmanById('cz-tzet')" style="padding:3px 8px;font-size:11px;">הכנס</button>
                   </div>
                 </div>
                 <div style="flex:1;min-width:120px;">
-                  <label style="font-size:11px;color:var(--gray-mid);display:block;margin-bottom:3px;">סוף זמן ק"ש גר"א</label>
+                  <label style="font-size:11px;color:var(--gray-mid);display:block;margin-bottom:3px;">סוף זמן ק"ש (גר"א)</label>
                   <div style="display:flex;align-items:center;gap:6px;">
                     <span id="cz-ksh" style="font-size:16px;font-weight:800;color:var(--navy);">--:--</span>
-                    <button class="btn btn-outline btn-sm" onclick="insertZman('סוף זמן ק"ש (גר"א)', 'cz-ksh')" style="padding:3px 8px;font-size:11px;">הכנס</button>
+                    <button class="btn btn-outline btn-sm" onclick="insertZmanById('cz-ksh')" style="padding:3px 8px;font-size:11px;">הכנס</button>
                   </div>
                 </div>
                 <div style="flex:1;min-width:120px;">
                   <label style="font-size:11px;color:var(--gray-mid);display:block;margin-bottom:3px;">הנץ החמה</label>
                   <div style="display:flex;align-items:center;gap:6px;">
                     <span id="cz-hanetz" style="font-size:16px;font-weight:800;color:var(--navy);">--:--</span>
-                    <button class="btn btn-outline btn-sm" onclick="insertZman('הנץ החמה', 'cz-hanetz')" style="padding:3px 8px;font-size:11px;">הכנס</button>
+                    <button class="btn btn-outline btn-sm" onclick="insertZmanById('cz-hanetz')" style="padding:3px 8px;font-size:11px;">הכנס</button>
                   </div>
                 </div>
               </div>
@@ -807,6 +807,13 @@
 
         <div class="form-group">
           <label>תוכן ההודעה</label>
+          <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
+            <button class="btn btn-outline btn-sm" onclick="insertSeparator('day')" title="הוסף כותרת יום">+ כותרת יום</button>
+            <button class="btn btn-outline btn-sm" onclick="insertSeparator('line')" title="הוסף קו הפרדה">+ קו הפרדה</button>
+            <button class="btn btn-gold btn-sm" onclick="fillShabbatZmanim()" title="מלא זמני שבת אוטומטית" id="fill-shabbat-btn" style="display:none;">
+              ⚡ מלא זמני שבת
+            </button>
+          </div>
           <textarea id="custom-message" placeholder="כתוב כאן את ההודעה..." oninput="updateCustomPreview()"></textarea>
         </div>
 
@@ -823,6 +830,8 @@
           <label>תבניות מוכנות</label>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
             <button class="btn btn-outline btn-sm" onclick="loadTemplate('chag')">חג</button>
+            <button class="btn btn-outline btn-sm" onclick="loadTemplate('shabbat_chag')">שבת + חג</button>
+            <button class="btn btn-outline btn-sm" onclick="loadTemplate('chag_shabbat')">חג + שבת</button>
             <button class="btn btn-outline btn-sm" onclick="loadTemplate('event')">אירוע</button>
             <button class="btn btn-outline btn-sm" onclick="loadTemplate('reminder')">תזכורת</button>
             <button class="btn btn-outline btn-sm" onclick="loadTemplate('shiur')">שיעור</button>
@@ -1400,6 +1409,11 @@ function clearHistory() {
 
 // ===== TEMPLATES =====
 function loadTemplate(type) {
+  // הצג כפתור מילוי זמני שבת רק לתבניות רלוונטיות
+  const fillBtn = document.getElementById('fill-shabbat-btn');
+  if (fillBtn) {
+    fillBtn.style.display = (type === 'shabbat_chag' || type === 'chag_shabbat') ? 'inline-flex' : 'none';
+  }
   const templates = {
     chag: `חג שמח לכל בית ישראל!
 
@@ -1412,6 +1426,52 @@ function loadTemplate(type) {
 מוסף:
 
 חג כשר ושמח!`,
+
+    shabbat_chag: `זמני תפילות לשבת וחג
+
+בית כנסת הרמח"ל מיצד
+---
+
+=== שבת ===
+מנחה: 
+שקיעה: 
+קבלת שבת בנעימה
+מעריב ליל שבת: 
+שחרית: 
+סוף זמן קש (גרא): 
+קידושא רבא לאחר התפילה
+אבות ובנים: 
+מנחה של שבת: 
+
+=== יום ראשון - חג ===
+מוצאי שבת וכניסת החג: 
+שחרית: 
+מוסף: 
+מנחה: 
+
+חג שמח ושבת שלום!`,
+
+    chag_shabbat: `זמני תפילות לחג ושבת
+
+בית כנסת הרמח"ל מיצד
+---
+
+=== יום שישי - ערב חג ===
+מנחה: 
+שקיעה / כניסת החג: 
+מעריב: 
+
+=== שבת - חג ===
+שחרית: 
+מוסף: 
+סוף זמן קש (גרא): 
+קידושא רבא לאחר התפילה
+אבות ובנים: 
+מנחה: 
+מעריב מוצאי שבת וחג: 
+צאת שבת וחג: 
+
+חג שמח ושבת שלום!`,
     event: `הזמנה מיוחדת
 
 בית כנסת הרמח"ל מיצד
@@ -1556,6 +1616,76 @@ function insertZman(label, elementId) {
   updateCustomPreview();
 }
 
+function fillShabbatZmanim() {
+  // בדוק אם יש זמנים טעונים מהשבת
+  if (!STATE.zmanim) {
+    alert('יש לטעון זמנים תחילה — עבור ל"זמני שבת" ולחץ "חשב זמנים", ואז חזור לכאן.');
+    return;
+  }
+
+  const z = STATE.zmanim;
+  const ta = document.getElementById('custom-message');
+  if (!ta) return;
+
+
+  let text = ta.value;
+  let count = 0;
+  fields.forEach(f => {
+    if (text.includes(f.find)) {
+      text = text.split(f.find).join(f.val);
+      count++;
+    }
+  });
+
+  ta.value = text;
+  updateCustomPreview();
+  if (count > 0) {
+    showAlert('custom', '✅ מולאו ' + count + ' זמני שבת אוטומטית!', 'success');
+  } else {
+    showAlert('custom', '⚠️ לא נמצאו שדות להחלפה. ודא שהתבנית נטענה.', 'error');
+  }
+}
+
+function insertSeparator(type) {
+  const ta = document.getElementById('custom-message');
+  if (!ta) return;
+  const pos = ta.selectionStart || ta.value.length;
+
+  let insert = '';
+  if (type === 'day') {
+    const name = prompt('שם היום (לדוגמה: יום א - חג שבועות):');
+    if (!name) return;
+    insert = '\n=== ' + name + ' ===\n';
+  } else {
+    insert = '\n---\n';
+  }
+
+  ta.value = ta.value.slice(0, pos) + insert + ta.value.slice(pos);
+  ta.selectionStart = ta.selectionEnd = pos + insert.length;
+  ta.focus();
+  updateCustomPreview();
+}
+
+function insertZmanById(elementId) {
+  const labels = {
+    'cz-shkia':  'שקיעה',
+    'cz-tzet':   'צאת שבת',
+    'cz-ksh':    'סוף זמן ק"ש (גר"א)',
+    'cz-hanetz': 'הנץ החמה',
+  };
+  const label = labels[elementId] || elementId;
+  const time = document.getElementById(elementId)?.textContent;
+  if (!time || time === '--:--') return;
+  const ta = document.getElementById('custom-message');
+  if (!ta) return;
+  const pos = ta.selectionStart || ta.value.length;
+  const insert = label + ': ' + time + '\n';
+  ta.value = ta.value.slice(0, pos) + insert + ta.value.slice(pos);
+  ta.selectionStart = ta.selectionEnd = pos + insert.length;
+  ta.focus();
+  updateCustomPreview();
+}
+
 function insertAllZmanim() {
   if (!_customZmanim) return;
   const ta = document.getElementById('custom-message');
@@ -1619,23 +1749,15 @@ function loadCustomTemplate(idx) {
   updateCustomPreview();
 }
 
-function deleteCustomTemplate(name) {
-  if (!confirm('למחוק את התבנית "' + name + '"?')) return;
-  const templates = JSON.parse(localStorage.getItem('custom_templates') || '[]')
-    .filter(t => t.name !== name);
+function deleteCustomTemplate(idx) {
+  idx = parseInt(idx);
+  const templates = JSON.parse(localStorage.getItem('custom_templates') || '[]');
+  const t = templates[idx];
+  if (!t) return;
+  if (!confirm('למחוק את התבנית ' + t.name + '?')) return;
+  templates.splice(idx, 1);
   localStorage.setItem('custom_templates', JSON.stringify(templates));
   renderSavedTemplates();
-
-  // הגדר תאריך ברירת מחדל לשבת הקרובה גם בטאב ההודעה החופשית
-  const czDate = document.getElementById('custom-zmanim-date');
-  if (czDate) {
-    const today = new Date();
-    const dow = today.getDay();
-    const daysUntilSat = (6 - dow + 7) % 7 || 7;
-    const shabbat = new Date(today);
-    shabbat.setDate(today.getDate() + daysUntilSat);
-    czDate.value = shabbat.toISOString().split('T')[0];
-  }
 }
 
 function renderSavedTemplates() {
@@ -1650,14 +1772,11 @@ function renderSavedTemplates() {
   }
 
   container.innerHTML = templates.map((t, idx) => {
-    const safeName = t.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    return `<div style="display:inline-flex;align-items:center;gap:4px;background:#f0f0f0;border-radius:20px;padding:4px 4px 4px 10px;border:1px solid #ddd;margin:2px;">
-      <span style="font-size:13px;font-weight:600;cursor:pointer;color:var(--navy);"
-            onclick="loadCustomTemplate(${idx})">${safeName}</span>
-      <button onclick="deleteCustomTemplate(${idx})"
-        style="background:none;border:none;cursor:pointer;color:#999;font-size:16px;padding:0 4px;line-height:1;"
-        title="מחק">×</button>
-    </div>`;
+    const safeName = t.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return '<div style="display:inline-flex;align-items:center;gap:4px;background:#f0f0f0;border-radius:20px;padding:4px 4px 4px 10px;border:1px solid #ddd;margin:2px;">'
+      + '<span style="font-size:13px;font-weight:600;cursor:pointer;color:var(--navy);" onclick="loadCustomTemplate(' + idx + ')">' + safeName + '</span>'
+      + '<button data-idx="' + idx + '" onclick="deleteCustomTemplate(this.dataset.idx)" style="background:none;border:none;cursor:pointer;color:#999;font-size:18px;padding:0 6px;line-height:1;" title="מחק">×</button>'
+      + '</div>';
   }).join('');
 }
 
