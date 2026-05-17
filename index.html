@@ -1085,6 +1085,13 @@ function switchTab(tab) {
   });
   if (tab === 'history') renderHistory();
   if (tab === 'dashboard') updateDashboard();
+  if (tab === 'shabbat' && !STATE.zmanim) {
+    // טען זמנים אוטומטית בכניסה ראשונה לטאב
+    setTimeout(() => {
+      const btn = document.querySelector('#tab-shabbat .btn-primary');
+      if (btn) btn.click();
+    }, 100);
+  }
 }
 
 // ===== TIME HELPERS =====
