@@ -1000,7 +1000,7 @@ const STATE = {
     shul: 'בית כנסת הרמח"ל מיצד',
     email: 'metzad-chevra@googlegroups.com',
     mode: 'test',
-    webhook: '',
+    webhook: 'https://script.google.com/macros/s/AKfycbwf0HAdQHgkmxHSoUAkrhuiyz_GL0h2ZyXfr1C7gs9ii6phXFQikbw2o_GxDaWzo69acA/exec',
     mincha: 20, maariv: 35, shacharit: 40, minchaShab: 40, motzash: 10,
     autoSend: true, holidayAlert: true, confirmSend: true
   }))
@@ -1205,15 +1205,17 @@ async function doSend(channel, subject, msg, type) {
   const webhook = STATE.settings.webhook;
 
   if (channel === 'email' || channel === 'both') {
+    const webhook = STATE.settings.webhook;
     if (webhook) {
       try {
-        await fetch(webhook + '?action=send&subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(msg));
-        showAlert(alertId, '✅ מייל נשלח בהצלחה!', 'success');
+        const url = webhook + '?action=send&subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(msg);
+        await fetch(url, { method: 'GET', mode: 'no-cors' });
+        showAlert(alertId, '✅ המייל נשלח בהצלחה לרשימת התפוצה!', 'success');
       } catch(e) {
-        showAlert(alertId, '⚠️ לא ניתן להתחבר ל-Apps Script. בדוק את כתובת ה-Webhook.', 'error');
+        showAlert(alertId, '⚠️ שגיאה בשליחה: ' + e.message, 'error');
       }
     } else {
-      showAlert(alertId, '✅ (בדיקה) מייל היה נשלח ל: ' + (STATE.settings.mode === 'test' ? '4103353@gmail.com' : STATE.settings.email), 'success');
+      showAlert(alertId, '⚠️ יש להגדיר Webhook בהגדרות', 'error');
     }
   }
 
