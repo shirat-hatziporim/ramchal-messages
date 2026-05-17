@@ -1456,10 +1456,12 @@ function loadTemplate(type) {
 בית כנסת הרמח"ל מיצד
 ---
 
-=== יום שישי - ערב חג ===
+=== יום שישי - חג ===
+שחרית: 
+מוסף: 
 מנחה: 
-שקיעה / כניסת החג: 
-מעריב: 
+שקיעה / כניסת שבת: 
+מעריב ליל שבת: 
 
 === שבת - חג ===
 שחרית: 
@@ -1627,6 +1629,19 @@ function fillShabbatZmanim() {
   const ta = document.getElementById('custom-message');
   if (!ta) return;
 
+  const fields = [
+    { find: 'מנחה: \n',                   val: 'מנחה: ' + z.mincha + " (20 דק' לפני השקיעה)\n" },
+    { find: 'שקיעה: \n',                  val: 'שקיעה: ' + z.shkia + '\n' },
+    { find: 'שקיעה / כניסת שבת: \n',     val: 'שקיעה / כניסת שבת: ' + z.shkia + '\n' },
+    { find: 'מעריב ליל שבת: \n',          val: "מעריב ליל שבת: " + z.maarivLeil + " (35 דק' אחרי השקיעה)\n" },
+    { find: 'שחרית: \n',                  val: "שחרית: " + z.shacharit + " (40 דק' לפני סוף זמן קש)\n" },
+    { find: 'סוף זמן קש (גרא): \n',      val: 'סוף זמן קש (גרא): ' + z.sofKsh + '\n' },
+    { find: 'אבות ובנים: \n',             val: "אבות ובנים: " + z.avotBanim + " (40 דק' לפני מנחה)\n" },
+    { find: 'מנחה של שבת: \n',            val: "מנחה של שבת: " + z.minchaShab + " (40 דק' לפני השקיעה)\n" },
+    { find: 'מעריב מוצאי שבת וחג: \n',   val: "מעריב מוצאי שבת וחג: " + z.maarivMotzash + " (10 דק' אחרי צאת שבת)\n" },
+    { find: 'צאת שבת וחג: \n',            val: 'צאת שבת וחג: ' + z.tzet + '\n' },
+    { find: 'מוצאי שבת וכניסת החג: \n',  val: 'מוצאי שבת וכניסת החג: ' + z.maarivMotzash + '\n' },
+  ];
 
   let text = ta.value;
   let count = 0;
