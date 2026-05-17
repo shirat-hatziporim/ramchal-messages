@@ -868,11 +868,17 @@
             <input type="email" id="setting-email" placeholder="metzad-chevra@googlegroups.com">
           </div>
           <div class="form-group">
-            <label>מצב (בדיקה / פרודקשן)</label>
-            <select id="setting-mode">
-              <option value="test">בדיקה — שולח ל-4103353@gmail.com</option>
-              <option value="prod">פרודקשן — שולח לרשימת התפוצה</option>
-            </select>
+            <label>מצב שליחה</label>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#faf9f7;border:1.5px solid var(--gray-light);border-radius:8px;">
+              <label class="toggle" style="margin:0;">
+                <input type="checkbox" id="setting-mode-toggle" onchange="toggleMode(this)">
+                <span class="toggle-slider"></span>
+              </label>
+              <div>
+                <div id="mode-label" style="font-size:14px;font-weight:600;color:var(--danger);">בדיקה — שולח ל-4103353@gmail.com</div>
+                <div style="font-size:11px;color:var(--gray-mid);margin-top:2px;">החלף למצב פרודקשן לשליחה לרשימת התפוצה</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1208,9 +1214,11 @@ async function doSend(channel, subject, msg, type) {
     const webhook = STATE.settings.webhook;
     if (webhook) {
       try {
-        const url = webhook + '?action=send&subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(msg);
+        const mode = STATE.settings.mode || 'test';
+        const url = webhook + '?action=send&mode=' + mode + '&subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(msg);
         await fetch(url, { method: 'GET', mode: 'no-cors' });
-        showAlert(alertId, '✅ המייל נשלח בהצלחה לרשימת התפוצה!', 'success');
+        const dest = mode === 'prod' ? 'לרשימת התפוצה' : 'למייל הבדיקה שלך';
+        showAlert(alertId, '✅ המייל נשלח בהצלחה ' + dest + '!', 'success');
       } catch(e) {
         showAlert(alertId, '⚠️ שגיאה בשליחה: ' + e.message, 'error');
       }
@@ -1349,12 +1357,52 @@ function loadTemplate(type) {
   updateCustomPreview();
 }
 
+// ===== MODE TOGGLE =====
+function toggleMode(checkbox) {
+  const isProd = checkbox.checked;
+  const label = document.getElementById('mode-label');
+  const emailInput = document.getElementById('setting-email');
+
+  if (isProd) {
+    label.style.color = 'var(--success)';
+    label.textContent = 'פרודקשן — שולח ל-metzad-chevra@googlegroups.com';
+    if (emailInput) emailInput.value = 'metzad-chevra@googlegroups.com';
+  } else {
+    label.style.color = 'var(--danger)';
+    label.textContent = 'בדיקה — שולח ל-4103353@gmail.com';
+    if (emailInput) emailInput.value = '4103353@gmail.com';
+  }
+
+  // שמור מיד
+  STATE.settings.mode = isProd ? 'prod' : 'test';
+  STATE.settings.email = isProd ? 'metzad-chevra@googlegroups.com' : '4103353@gmail.com';
+  localStorage.setItem('msg_settings', JSON.stringify(STATE.settings));
+
+  // שלח לApps Script לעדכן
+  const webhook = STATE.settings.webhook;
+  if (webhook) {
+    const url = webhook + '?action=setMode&mode=' + (isProd ? 'prod' : 'test');
+    fetch(url, { method: 'GET', mode: 'no-cors' }).catch(() => {});
+  }
+
+  showModeToast(isProd);
+}
+
+function showModeToast(isProd) {
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:' +
+    (isProd ? '#1a7a4a' : '#c0392b') + ';color:white;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);';
+  toast.textContent = isProd ? '✅ מצב פרודקשן — שולח לרשימה המלאה' : '🔧 מצב בדיקה — שולח רק אליך';
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
 // ===== SETTINGS =====
 function saveSettings() {
   STATE.settings = {
     shul: document.getElementById('setting-shul').value,
     email: document.getElementById('setting-email').value,
-    mode: document.getElementById('setting-mode').value,
+    mode: document.getElementById('setting-mode-toggle').checked ? 'prod' : 'test',
     webhook: document.getElementById('setting-webhook').value,
     mincha: +document.getElementById('setting-mincha').value,
     maariv: +document.getElementById('setting-maariv').value,
@@ -1467,7 +1515,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
   setVal('setting-shul', s.shul);
   setVal('setting-email', s.email);
-  setVal('setting-mode', s.mode);
+  // restore mode toggle
+  const modeToggle = document.getElementById('setting-mode-toggle');
+  if (modeToggle) {
+    modeToggle.checked = s.mode === 'prod';
+    const label = document.getElementById('mode-label');
+    if (label) {
+      if (s.mode === 'prod') {
+        label.style.color = 'var(--success)';
+        label.textContent = 'פרודקשן — שולח ל-metzad-chevra@googlegroups.com';
+      } else {
+        label.style.color = 'var(--danger)';
+        label.textContent = 'בדיקה — שולח ל-4103353@gmail.com';
+      }
+    }
+  }
   setVal('setting-webhook', s.webhook);
   setVal('setting-mincha', s.mincha);
   setVal('setting-maariv', s.maariv);
