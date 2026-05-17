@@ -782,6 +782,19 @@
             <button class="btn btn-outline btn-sm" onclick="loadTemplate('shiur')">שיעור</button>
           </div>
         </div>
+
+        <div class="form-group">
+          <label>התבניות שלי</label>
+          <div id="saved-templates-list" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;min-height:32px;">
+            <span style="font-size:12px;color:var(--gray-mid);padding-top:6px;">אין תבניות שמורות עדיין</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <input type="text" id="template-name-input"
+              placeholder="שם התבנית..."
+              style="flex:1;padding:8px 12px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;direction:rtl;">
+            <button class="btn btn-primary btn-sm" onclick="saveCustomTemplate()">שמור תבנית</button>
+          </div>
+        </div>
       </div>
 
       <div class="card">
@@ -1137,24 +1150,25 @@ function renderZmanim(z, parasha) {
 
 function buildShabbatMessage(z, parasha) {
   const note = document.getElementById('shabbat-note')?.value;
-  const msg = `*זמני תפילות לשבת פרשת ${parasha || '[פרשה]'}*
-${note ? note + '\n' : ''}בית כנסת הרמח"ל מיצד
-----------------------------
-
-מנחה: *${z.mincha}* (20 דק' לפני השקיעה)
-שקיעה: *${z.shkia}*
-קבלת שבת בנעימה
-מעריב ליל שבת: *${z.maarivLeil}* (35 דק' אחרי השקיעה)
-
-שחרית: *${z.shacharit}* (40 דק' לפני סוף זמן ק"ש)
-סוף זמן ק"ש (גר"א): *${z.sofKsh}*
-קידושא רבא לאחר התפילה
-
-אבות ובנים: *${z.avotBanim}* (40 דק' לפני מנחה)
-מנחה של שבת: *${z.minchaShab}* (40 דק' לפני השקיעה)
-מעריב מוצאי שבת: *${z.maarivMotzash}* (10 דק' אחרי צאת שבת)
-----------------------------
-שבת שלום ומבורך!`;
+  const msg = 'זמני תפילות לשבת פרשת ' + (parasha || '[פרשה]') + '\n'
+    + (note ? note + '\n' : '')
+    + 'בית כנסת הרמח"ל מיצד\n'
+    + '----------------------------\n'
+    + '\n'
+    + 'מנחה: ' + z.mincha + ' (20 דק\' לפני השקיעה)\n'
+    + 'שקיעה: ' + z.shkia + '\n'
+    + 'קבלת שבת בנעימה\n'
+    + 'מעריב ליל שבת: ' + z.maarivLeil + ' (35 דק\' אחרי השקיעה)\n'
+    + '\n'
+    + 'שחרית: ' + z.shacharit + ' (40 דק\' לפני סוף זמן קש)\n'
+    + 'סוף זמן קש (גרא): ' + z.sofKsh + '\n'
+    + 'קידושא רבא לאחר התפילה\n'
+    + '\n'
+    + 'אבות ובנים: ' + z.avotBanim + ' (40 דק\' לפני מנחה)\n'
+    + 'מנחה של שבת: ' + z.minchaShab + ' (40 דק\' לפני השקיעה)\n'
+    + 'מעריב מוצאי שבת: ' + z.maarivMotzash + ' (10 דק\' אחרי צאת שבת)\n'
+    + '----------------------------\n'
+    + 'שבת שלום ומבורך!';
 
   const ta = document.getElementById('shabbat-message');
   if (ta) { ta.value = msg; updateShabbatPreview(); }
@@ -1215,7 +1229,10 @@ async function doSend(channel, subject, msg, type) {
     if (webhook) {
       try {
         const mode = STATE.settings.mode || 'test';
-        const url = webhook + '?action=send&mode=' + mode + '&subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(msg);
+        const parasha = document.getElementById('parasha-input')?.value || '';
+        // החלף [פרשה] בשם הפרשה האמיתי אם קיים
+        const finalMsg = parasha ? msg.replace('[פרשה]', parasha) : msg;
+        const url = webhook + '?action=send&mode=' + mode + '&subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(finalMsg);
         await fetch(url, { method: 'GET', mode: 'no-cors' });
         const dest = mode === 'prod' ? 'לרשימת התפוצה' : 'למייל הבדיקה שלך';
         showAlert(alertId, '✅ המייל נשלח בהצלחה ' + dest + '!', 'success');
@@ -1397,6 +1414,72 @@ function showModeToast(isProd) {
   setTimeout(() => toast.remove(), 3000);
 }
 
+// ===== CUSTOM TEMPLATES =====
+function saveCustomTemplate() {
+  const name = document.getElementById('template-name-input')?.value?.trim();
+  const msg  = document.getElementById('custom-message')?.value?.trim();
+  const subj = document.getElementById('custom-subject')?.value?.trim();
+
+  if (!name) { alert('יש להזין שם לתבנית'); return; }
+  if (!msg)  { alert('יש לכתוב תוכן לתבנית'); return; }
+
+  const templates = JSON.parse(localStorage.getItem('custom_templates') || '[]');
+  // בדוק אם שם קיים
+  const existingIdx = templates.findIndex(t => t.name === name);
+  if (existingIdx >= 0) {
+    if (!confirm('תבנית בשם "' + name + '" כבר קיימת. להחליף?')) return;
+    templates[existingIdx] = { name, msg, subj };
+  } else {
+    templates.push({ name, msg, subj });
+  }
+
+  localStorage.setItem('custom_templates', JSON.stringify(templates));
+  document.getElementById('template-name-input').value = '';
+  renderSavedTemplates();
+  alert('✅ התבנית "' + name + '" נשמרה!');
+}
+
+function loadCustomTemplate(name) {
+  const templates = JSON.parse(localStorage.getItem('custom_templates') || '[]');
+  const t = templates.find(t => t.name === name);
+  if (!t) return;
+  if (t.subj) document.getElementById('custom-subject').value = t.subj;
+  document.getElementById('custom-message').value = t.msg;
+  updateCustomPreview();
+}
+
+function deleteCustomTemplate(name) {
+  if (!confirm('למחוק את התבנית "' + name + '"?')) return;
+  const templates = JSON.parse(localStorage.getItem('custom_templates') || '[]')
+    .filter(t => t.name !== name);
+  localStorage.setItem('custom_templates', JSON.stringify(templates));
+  renderSavedTemplates();
+}
+
+function renderSavedTemplates() {
+  const container = document.getElementById('saved-templates-list');
+  if (!container) return;
+
+  const templates = JSON.parse(localStorage.getItem('custom_templates') || '[]');
+
+  if (!templates.length) {
+    container.innerHTML = '<span style="font-size:12px;color:var(--gray-mid);padding-top:6px;">אין תבניות שמורות עדיין</span>';
+    return;
+  }
+
+  container.innerHTML = templates.map(t => `
+    <div style="display:inline-flex;align-items:center;gap:4px;background:#f0f0f0;border-radius:20px;padding:4px 4px 4px 10px;border:1px solid #ddd;">
+      <span style="font-size:13px;font-weight:600;cursor:pointer;color:var(--navy);"
+            onclick="loadCustomTemplate('${t.name.replace(/'/g, "\\'")}')">
+        ${t.name}
+      </span>
+      <button onclick="deleteCustomTemplate('${t.name.replace(/'/g, "\\'")}'')"
+        style="background:none;border:none;cursor:pointer;color:#999;font-size:14px;padding:0 4px;line-height:1;"
+        title="מחק">x</button>
+    </div>
+  `).join('');
+}
+
 // ===== SETTINGS =====
 function saveSettings() {
   STATE.settings = {
@@ -1542,6 +1625,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const daysUntilSat = (6 - dow + 7) % 7 || 7;
   const shabbat = new Date(today);
   shabbat.setDate(today.getDate() + daysUntilSat);
+  renderSavedTemplates();
   const dateEl = document.getElementById('shabbat-date');
   if (dateEl) dateEl.value = shabbat.toISOString().split('T')[0];
 });
