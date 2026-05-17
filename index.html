@@ -1541,9 +1541,15 @@ function insertZman(label, elementId) {
   const ta = document.getElementById('custom-message');
   if (!ta) return;
 
+  // תיקון גרשיים בשמות מיוחדים
+  const labelMap = {
+    'סוף זמן קש גרא': 'סוף זמן ק"ש (גר"א)',
+  };
+  const displayLabel = labelMap[label] || label;
+
   const pos = ta.selectionStart || ta.value.length;
   const text = ta.value;
-  const insert = label + ': ' + time + '\n';
+  const insert = displayLabel + ': ' + time + '\n';
   ta.value = text.slice(0, pos) + insert + text.slice(pos);
   ta.selectionStart = ta.selectionEnd = pos + insert.length;
   ta.focus();
