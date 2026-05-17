@@ -1628,27 +1628,34 @@ function fillShabbatZmanim() {
   const ta = document.getElementById('custom-message');
   if (!ta) return;
 
-  const fields = [
-    { find: 'מנחה: \n',                   val: 'מנחה: ' + z.mincha + " (20 דק' לפני השקיעה)\n" },
-    { find: 'שקיעה: \n',                  val: 'שקיעה: ' + z.shkia + '\n' },
-    { find: 'שקיעה / כניסת שבת: \n',     val: 'שקיעה / כניסת שבת: ' + z.shkia + '\n' },
-    { find: 'מעריב ליל שבת: \n',          val: "מעריב ליל שבת: " + z.maarivLeil + " (35 דק' אחרי השקיעה)\n" },
-    { find: 'שחרית: \n',                  val: "שחרית: " + z.shacharit + " (40 דק' לפני סוף זמן קש)\n" },
-    { find: 'סוף זמן קש (גרא): \n',      val: 'סוף זמן קש (גרא): ' + z.sofKsh + '\n' },
-    { find: 'אבות ובנים: \n',             val: "אבות ובנים: " + z.avotBanim + " (40 דק' לפני מנחה)\n" },
-    { find: 'מנחה של שבת: \n',            val: "מנחה של שבת: " + z.minchaShab + " (40 דק' לפני השקיעה)\n" },
-    { find: 'מעריב מוצאי שבת וחג: \n',   val: "מעריב מוצאי שבת וחג: " + z.maarivMotzash + " (10 דק' אחרי צאת שבת)\n" },
-    { find: 'צאת שבת וחג: \n',            val: 'צאת שבת וחג: ' + z.tzet + '\n' },
-    { find: 'מוצאי שבת וכניסת החג: \n',  val: 'מוצאי שבת וכניסת החג: ' + z.maarivMotzash + '\n' },
+  // חיפוש גמיש — עם ובלי רווח לפני שורה חדשה
+  function tryReplace(text, find, val) {
+    if (text.includes(find + '\n')) return { text: text.split(find + '\n').join(val), found: true };
+    if (text.includes(find + ' \n')) return { text: text.split(find + ' \n').join(val), found: true };
+    return { text, found: false };
+  }
+
+  const fieldsMap = [
+    { find: 'מנחה:',                    val: 'מנחה: ' + z.mincha + " (20 דק' לפני השקיעה)" },
+    { find: 'שקיעה:',                   val: 'שקיעה: ' + z.shkia },
+    { find: 'שקיעה / כניסת שבת:',      val: 'שקיעה / כניסת שבת: ' + z.shkia },
+    { find: 'מעריב ליל שבת:',           val: "מעריב ליל שבת: " + z.maarivLeil + " (35 דק' אחרי השקיעה)" },
+    { find: 'שחרית:',                   val: "שחרית: " + z.shacharit + ' (40 דק\' לפני סוף זמן ק"ש)' },
+    { find: 'סוף זמן קש (גרא):',       val: 'סוף זמן ק"ש (גר"א): ' + z.sofKsh },
+    { find: 'אבות ובנים:',              val: "אבות ובנים: " + z.avotBanim + " (40 דק' לפני מנחה)" },
+    { find: 'מנחה של שבת:',             val: "מנחה של שבת: " + z.minchaShab + " (40 דק' לפני השקיעה)" },
+    { find: 'מעריב מוצאי שבת וחג:',    val: "מעריב מוצאי שבת וחג: " + z.maarivMotzash + " (10 דק' אחרי צאת שבת)" },
+    { find: 'מעריב מוצאי שבת:',        val: "מעריב מוצאי שבת: " + z.maarivMotzash + " (10 דק' אחרי צאת שבת)" },
+    { find: 'צאת שבת וחג:',             val: 'צאת שבת וחג: ' + z.tzet },
+    { find: 'צאת שבת:',                 val: 'צאת שבת: ' + z.tzet },
+    { find: 'מוצאי שבת וכניסת החג:',   val: 'מוצאי שבת וכניסת החג: ' + z.maarivMotzash },
   ];
 
   let text = ta.value;
   let count = 0;
-  fields.forEach(f => {
-    if (text.includes(f.find)) {
-      text = text.split(f.find).join(f.val);
-      count++;
-    }
+  fieldsMap.forEach(f => {
+    const r = tryReplace(text, f.find, f.val + '\n');
+    if (r.found) { text = r.text; count++; }
   });
 
   ta.value = text;
