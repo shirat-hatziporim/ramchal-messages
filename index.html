@@ -760,6 +760,52 @@
         </div>
 
         <div class="form-group">
+          <label>משיכת זמנים</label>
+          <div style="background:#f5f3ef;border:1.5px solid var(--gray-light);border-radius:10px;padding:14px;">
+            <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
+              <input type="date" id="custom-zmanim-date"
+                style="flex:1;padding:8px 12px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:Heebo,sans-serif;font-size:13px;">
+              <button class="btn btn-primary btn-sm" onclick="fetchCustomZmanim()">משוך זמנים</button>
+            </div>
+            <div id="custom-zmanim-result" style="display:none;">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:120px;">
+                  <label style="font-size:11px;color:var(--gray-mid);display:block;margin-bottom:3px;">שקיעה</label>
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <span id="cz-shkia" style="font-size:16px;font-weight:800;color:var(--navy);">--:--</span>
+                    <button class="btn btn-outline btn-sm" onclick="insertZman('שקיעה', 'cz-shkia')" style="padding:3px 8px;font-size:11px;">הכנס</button>
+                  </div>
+                </div>
+                <div style="flex:1;min-width:120px;">
+                  <label style="font-size:11px;color:var(--gray-mid);display:block;margin-bottom:3px;">צאת שבת (8.5°)</label>
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <span id="cz-tzet" style="font-size:16px;font-weight:800;color:var(--navy);">--:--</span>
+                    <button class="btn btn-outline btn-sm" onclick="insertZman('צאת שבת', 'cz-tzet')" style="padding:3px 8px;font-size:11px;">הכנס</button>
+                  </div>
+                </div>
+                <div style="flex:1;min-width:120px;">
+                  <label style="font-size:11px;color:var(--gray-mid);display:block;margin-bottom:3px;">סוף זמן קש גרא</label>
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <span id="cz-ksh" style="font-size:16px;font-weight:800;color:var(--navy);">--:--</span>
+                    <button class="btn btn-outline btn-sm" onclick="insertZman('סוף זמן קש (גרא)', 'cz-ksh')" style="padding:3px 8px;font-size:11px;">הכנס</button>
+                  </div>
+                </div>
+                <div style="flex:1;min-width:120px;">
+                  <label style="font-size:11px;color:var(--gray-mid);display:block;margin-bottom:3px;">הנץ החמה</label>
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <span id="cz-hanetz" style="font-size:16px;font-weight:800;color:var(--navy);">--:--</span>
+                    <button class="btn btn-outline btn-sm" onclick="insertZman('הנץ החמה', 'cz-hanetz')" style="padding:3px 8px;font-size:11px;">הכנס</button>
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="btn btn-primary btn-sm" onclick="insertAllZmanim()" style="font-size:12px;">הכנס את כל הזמנים</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
           <label>תוכן ההודעה</label>
           <textarea id="custom-message" placeholder="כתוב כאן את ההודעה..." oninput="updateCustomPreview()"></textarea>
         </div>
@@ -1421,6 +1467,91 @@ function showModeToast(isProd) {
   setTimeout(() => toast.remove(), 3000);
 }
 
+// ===== ZMANIM FOR CUSTOM MESSAGE =====
+var _customZmanim = null;
+
+async function fetchCustomZmanim() {
+  const dateInput = document.getElementById('custom-zmanim-date');
+  let date = dateInput?.value;
+
+  if (!date) {
+    const today = new Date();
+    const dow = today.getDay();
+    const daysUntilSat = (6 - dow + 7) % 7 || 7;
+    const shabbat = new Date(today);
+    shabbat.setDate(today.getDate() + daysUntilSat);
+    date = shabbat.toISOString().split('T')[0];
+    if (dateInput) dateInput.value = date;
+  }
+
+  const btn = event.currentTarget;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading"></span>';
+
+  try {
+    const url = `https://www.hebcal.com/zmanim?cfg=json&latitude=31.6219&longitude=35.1469&tzid=Asia/Jerusalem&date=${date}&sec=1&elevation=900&ue=on`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    const t = data.times;
+
+    const shkia = parseTimeStr(t.sunset);
+    const tzet  = parseTimeStr(t.tzeit85deg || t.nightfall);
+    const ksh   = parseTimeStr(t.sofZmanShma);
+    const hanetz = parseTimeStr(t.sunrise);
+
+    // ניכוי דקה אחת מהשקיעה (גובה מיצד)
+    const shkiaFixed = subMins(shkia, 1);
+
+    _customZmanim = { shkia: shkiaFixed, tzet, ksh, hanetz };
+
+    document.getElementById('cz-shkia').textContent  = shkiaFixed;
+    document.getElementById('cz-tzet').textContent   = tzet;
+    document.getElementById('cz-ksh').textContent    = ksh;
+    document.getElementById('cz-hanetz').textContent = hanetz;
+    document.getElementById('custom-zmanim-result').style.display = 'block';
+
+  } catch(e) {
+    alert('שגיאה בטעינת זמנים: ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = 'משוך זמנים';
+}
+
+function insertZman(label, elementId) {
+  const time = document.getElementById(elementId)?.textContent;
+  if (!time || time === '--:--') return;
+
+  const ta = document.getElementById('custom-message');
+  if (!ta) return;
+
+  const pos = ta.selectionStart || ta.value.length;
+  const text = ta.value;
+  const insert = label + ': ' + time + '\n';
+  ta.value = text.slice(0, pos) + insert + text.slice(pos);
+  ta.selectionStart = ta.selectionEnd = pos + insert.length;
+  ta.focus();
+  updateCustomPreview();
+}
+
+function insertAllZmanim() {
+  if (!_customZmanim) return;
+  const ta = document.getElementById('custom-message');
+  if (!ta) return;
+
+  const lines = [
+    'שקיעה: ' + _customZmanim.shkia,
+    'צאת שבת: ' + _customZmanim.tzet,
+    'סוף זמן קש (גרא): ' + _customZmanim.ksh,
+  ].join('\n') + '\n';
+
+  const pos = ta.selectionStart || ta.value.length;
+  ta.value = ta.value.slice(0, pos) + lines + ta.value.slice(pos);
+  ta.selectionStart = ta.selectionEnd = pos + lines.length;
+  ta.focus();
+  updateCustomPreview();
+}
+
 // ===== CUSTOM TEMPLATES =====
 function saveCustomTemplate() {
   const name = document.getElementById('template-name-input')?.value?.trim();
@@ -1443,6 +1574,17 @@ function saveCustomTemplate() {
   localStorage.setItem('custom_templates', JSON.stringify(templates));
   document.getElementById('template-name-input').value = '';
   renderSavedTemplates();
+
+  // הגדר תאריך ברירת מחדל לשבת הקרובה גם בטאב ההודעה החופשית
+  const czDate = document.getElementById('custom-zmanim-date');
+  if (czDate) {
+    const today = new Date();
+    const dow = today.getDay();
+    const daysUntilSat = (6 - dow + 7) % 7 || 7;
+    const shabbat = new Date(today);
+    shabbat.setDate(today.getDate() + daysUntilSat);
+    czDate.value = shabbat.toISOString().split('T')[0];
+  }
   alert('✅ התבנית "' + name + '" נשמרה!');
 }
 
@@ -1461,6 +1603,17 @@ function deleteCustomTemplate(name) {
     .filter(t => t.name !== name);
   localStorage.setItem('custom_templates', JSON.stringify(templates));
   renderSavedTemplates();
+
+  // הגדר תאריך ברירת מחדל לשבת הקרובה גם בטאב ההודעה החופשית
+  const czDate = document.getElementById('custom-zmanim-date');
+  if (czDate) {
+    const today = new Date();
+    const dow = today.getDay();
+    const daysUntilSat = (6 - dow + 7) % 7 || 7;
+    const shabbat = new Date(today);
+    shabbat.setDate(today.getDate() + daysUntilSat);
+    czDate.value = shabbat.toISOString().split('T')[0];
+  }
 }
 
 function renderSavedTemplates() {
@@ -1633,6 +1786,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const shabbat = new Date(today);
   shabbat.setDate(today.getDate() + daysUntilSat);
   renderSavedTemplates();
+
+  // הגדר תאריך ברירת מחדל לשבת הקרובה גם בטאב ההודעה החופשית
+  const czDate = document.getElementById('custom-zmanim-date');
+  if (czDate) {
+    const today = new Date();
+    const dow = today.getDay();
+    const daysUntilSat = (6 - dow + 7) % 7 || 7;
+    const shabbat = new Date(today);
+    shabbat.setDate(today.getDate() + daysUntilSat);
+    czDate.value = shabbat.toISOString().split('T')[0];
+  }
   const dateEl = document.getElementById('shabbat-date');
   if (dateEl) dateEl.value = shabbat.toISOString().split('T')[0];
 });
