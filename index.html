@@ -1151,16 +1151,25 @@ async function loadZmanim() {
 
     STATE.zmanim = { shkia, tzet, sofKsh, mincha, maarivLeil, shacharit, minchaShab, avotBanim, maarivMotzash };
 
-    // Get parasha
+    // Get parasha — שימוש ב-shabbat endpoint שיותר אמין
     let parasha = document.getElementById('parasha-input')?.value || '';
     if (!parasha) {
       try {
-        const [y, m, d] = date.split('-');
-        const pResp = await fetch(`https://www.hebcal.com/hebcal?v=1&cfg=json&maj=off&min=off&F=on&year=${y}&month=${m}&ss=off&mf=off&c=off&geo=none&m=0&s=on`);
+        // Hebcal shabbat API - מחזיר את השבת הקרובה כולל פרשה
+        const pResp = await fetch(`https://www.hebcal.com/shabbat?cfg=json&latitude=31.6219&longitude=35.1469&tzid=Asia/Jerusalem&m=0`);
         const pData = await pResp.json();
-        const pItem = (pData.items||[]).find(i => i.date === date && i.category === 'parashat');
+        const pItem = (pData.items||[]).find(i => i.category === 'parashat');
         if (pItem) parasha = translateParasha(pItem.title);
-      } catch(e) {}
+      } catch(e) {
+        // נסה את ה-endpoint הישן כגיבוי
+        try {
+          const [y, m, d2] = date.split('-');
+          const pResp2 = await fetch(`https://www.hebcal.com/hebcal?v=1&cfg=json&maj=off&min=off&F=on&year=${y}&month=${m}&ss=off&mf=off&c=off&geo=none&m=0&s=on`);
+          const pData2 = await pResp2.json();
+          const pItem2 = (pData2.items||[]).find(i => i.date === date && i.category === 'parashat');
+          if (pItem2) parasha = translateParasha(pItem2.title);
+        } catch(e2) {}
+      }
     }
 
     // מלא את שדה הפרשה
