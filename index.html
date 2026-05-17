@@ -1610,9 +1610,9 @@ function saveCustomTemplate() {
   alert('✅ התבנית "' + name + '" נשמרה!');
 }
 
-function loadCustomTemplate(name) {
+function loadCustomTemplate(idx) {
   const templates = JSON.parse(localStorage.getItem('custom_templates') || '[]');
-  const t = templates.find(t => t.name === name);
+  const t = templates[idx];
   if (!t) return;
   if (t.subj) document.getElementById('custom-subject').value = t.subj;
   document.getElementById('custom-message').value = t.msg;
@@ -1649,17 +1649,16 @@ function renderSavedTemplates() {
     return;
   }
 
-  container.innerHTML = templates.map(t => `
-    <div style="display:inline-flex;align-items:center;gap:4px;background:#f0f0f0;border-radius:20px;padding:4px 4px 4px 10px;border:1px solid #ddd;">
+  container.innerHTML = templates.map((t, idx) => {
+    const safeName = t.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return `<div style="display:inline-flex;align-items:center;gap:4px;background:#f0f0f0;border-radius:20px;padding:4px 4px 4px 10px;border:1px solid #ddd;margin:2px;">
       <span style="font-size:13px;font-weight:600;cursor:pointer;color:var(--navy);"
-            onclick="loadCustomTemplate('${t.name.replace(/'/g, "\\'")}')">
-        ${t.name}
-      </span>
-      <button onclick="deleteCustomTemplate('${t.name.replace(/'/g, "\\'")}'')"
-        style="background:none;border:none;cursor:pointer;color:#999;font-size:14px;padding:0 4px;line-height:1;"
-        title="מחק">x</button>
-    </div>
-  `).join('');
+            onclick="loadCustomTemplate(${idx})">${safeName}</span>
+      <button onclick="deleteCustomTemplate(${idx})"
+        style="background:none;border:none;cursor:pointer;color:#999;font-size:16px;padding:0 4px;line-height:1;"
+        title="מחק">×</button>
+    </div>`;
+  }).join('');
 }
 
 // ===== SETTINGS =====
