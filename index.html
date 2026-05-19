@@ -547,6 +547,7 @@
         <p>מערכת ניהול הודעות</p>
       </div>
     </div>
+    <div id="sync-indicator" style="font-size:11px;color:var(--gold-light);opacity:0;transition:opacity 0.5s;margin-left:12px;"></div>
     <div class="header-status">
       <div class="status-dot"></div>
       מערכת פעילה
@@ -591,7 +592,7 @@
         <div class="stat-label">נמענים</div>
       </div>
       <div class="stat-card">
-        <div class="stat-number" id="stat-next-auto">ד'</div>
+        <div class="stat-number" id="stat-next-auto">ה'</div>
         <div class="stat-label">שליחה אוטומטית</div>
       </div>
     </div>
@@ -1365,6 +1366,7 @@ function saveToHistory(subject, msg, channel, type) {
   STATE.history.unshift(entry);
   if (STATE.history.length > 100) STATE.history = STATE.history.slice(0, 100);
   localStorage.setItem('msg_history', JSON.stringify(STATE.history));
+  syncSaveEntry(entry);
 }
 
 function renderHistory() {
@@ -1747,6 +1749,7 @@ function saveCustomTemplate() {
   localStorage.setItem('custom_templates', JSON.stringify(templates));
   document.getElementById('template-name-input').value = '';
   renderSavedTemplates();
+  syncSaveTemplates();
 
   // הגדר תאריך ברירת מחדל לשבת הקרובה גם בטאב ההודעה החופשית
   const czDate = document.getElementById('custom-zmanim-date');
@@ -1779,6 +1782,7 @@ function deleteCustomTemplate(idx) {
   templates.splice(idx, 1);
   localStorage.setItem('custom_templates', JSON.stringify(templates));
   renderSavedTemplates();
+  syncSaveTemplates();
 }
 
 function renderSavedTemplates() {
@@ -1910,9 +1914,82 @@ function translateParasha(n) {
   return n || '';
 }
 
+// ===== SYNC =====
+var _syncInProgress = false;
+
+async function syncLoad() {
+  const webhook = STATE.settings.webhook;
+  if (!webhook) return;
+  try {
+    const resp = await fetch(webhook + '?action=getData', { mode: 'no-cors' });
+    // no-cors means we can't read response — use a proxy workaround
+    // Instead use a JSONP-style approach via script tag
+    loadSyncData();
+  } catch(e) {}
+}
+
+function loadSyncData() {
+  const webhook = STATE.settings.webhook;
+  if (!webhook || _syncInProgress) return;
+  _syncInProgress = true;
+
+  const script = document.createElement('script');
+  window._syncCallback = function(data) {
+    if (data && data.ok && data.data) {
+      // מיזוג היסטוריה
+      if (data.data.history && data.data.history.length > 0) {
+        const remoteIds = new Set(data.data.history.map(h => h.id));
+        const localOnly = STATE.history.filter(h => !remoteIds.has(h.id));
+        STATE.history = [...data.data.history, ...localOnly]
+          .sort((a,b) => b.id - a.id).slice(0, 100);
+        localStorage.setItem('msg_history', JSON.stringify(STATE.history));
+      }
+      // מיזוג תבניות
+      if (data.data.templates && data.data.templates.length > 0) {
+        localStorage.setItem('custom_templates', JSON.stringify(data.data.templates));
+        renderSavedTemplates();
+      }
+      updateDashboard();
+      showSyncIndicator('✅ סונכרן');
+    }
+    _syncInProgress = false;
+  };
+
+  // JSONP call
+  const url = webhook + '?action=getData&callback=_syncCallback';
+  script.src = url;
+  script.onerror = () => { _syncInProgress = false; };
+  document.body.appendChild(script);
+}
+
+async function syncSaveEntry(entry) {
+  const webhook = STATE.settings.webhook;
+  if (!webhook) return;
+  try {
+    await fetch(webhook + '?action=saveHistory&entry=' + encodeURIComponent(JSON.stringify(entry)), { mode: 'no-cors' });
+  } catch(e) {}
+}
+
+async function syncSaveTemplates() {
+  const webhook = STATE.settings.webhook;
+  if (!webhook) return;
+  const templates = JSON.parse(localStorage.getItem('custom_templates') || '[]');
+  try {
+    await fetch(webhook + '?action=saveTemplates&templates=' + encodeURIComponent(JSON.stringify(templates)), { mode: 'no-cors' });
+  } catch(e) {}
+}
+
+function showSyncIndicator(msg) {
+  const el = document.getElementById('sync-indicator');
+  if (el) { el.textContent = msg; el.style.opacity = '1'; setTimeout(() => el.style.opacity = '0', 3000); }
+}
+
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   updateDashboard();
+
+  // סנכרון עם Google Sheets
+  setTimeout(loadSyncData, 1000);
 
   // load settings into form
   const s = STATE.settings;
