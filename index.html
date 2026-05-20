@@ -1778,6 +1778,21 @@ function loadCustomTemplate(idx) {
   updateCustomPreview();
 }
 
+function editCustomTemplate(idx) {
+  const templates = JSON.parse(localStorage.getItem('custom_templates') || '[]');
+  const t = templates[idx];
+  if (!t) return;
+  // טען את התבנית לעריכה
+  if (t.subj) document.getElementById('custom-subject').value = t.subj;
+  document.getElementById('custom-message').value = t.msg;
+  updateCustomPreview();
+  // מלא את שם התבנית בשדה השמירה
+  document.getElementById('template-name-input').value = t.name;
+  // גלול לאזור העריכה
+  document.getElementById('custom-message').focus();
+  showAlert('custom', '✏️ ערוך את ההודעה ולחץ "שמור תבנית" לעדכון', 'success');
+}
+
 function deleteCustomTemplate(idx) {
   idx = parseInt(idx);
   const templates = JSON.parse(localStorage.getItem('custom_templates') || '[]');
@@ -1803,9 +1818,10 @@ function renderSavedTemplates() {
 
   container.innerHTML = templates.map((t, idx) => {
     const safeName = t.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    return '<div style="display:inline-flex;align-items:center;gap:4px;background:#f0f0f0;border-radius:20px;padding:4px 4px 4px 10px;border:1px solid #ddd;margin:2px;">'
+    return '<div style="display:inline-flex;align-items:center;gap:2px;background:#f0f0f0;border-radius:20px;padding:4px 4px 4px 10px;border:1px solid #ddd;margin:2px;">'
       + '<span style="font-size:13px;font-weight:600;cursor:pointer;color:var(--navy);" onclick="loadCustomTemplate(' + idx + ')">' + safeName + '</span>'
-      + '<button data-idx="' + idx + '" onclick="deleteCustomTemplate(this.dataset.idx)" style="background:none;border:none;cursor:pointer;color:#999;font-size:18px;padding:0 6px;line-height:1;" title="מחק">×</button>'
+      + '<button onclick="editCustomTemplate(' + idx + ')" style="background:none;border:none;cursor:pointer;color:#888;font-size:13px;padding:0 4px;line-height:1;" title="ערוך">✏️</button>'
+      + '<button data-idx="' + idx + '" onclick="deleteCustomTemplate(this.dataset.idx)" style="background:none;border:none;cursor:pointer;color:#999;font-size:16px;padding:0 4px;line-height:1;" title="מחק">×</button>'
       + '</div>';
   }).join('');
 }
