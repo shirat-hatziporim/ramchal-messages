@@ -811,6 +811,7 @@
           <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
             <button class="btn btn-outline btn-sm" onclick="insertSeparator('day')" title="הוסף כותרת יום">+ כותרת יום</button>
             <button class="btn btn-outline btn-sm" onclick="insertSeparator('line')" title="הוסף קו הפרדה">+ קו הפרדה</button>
+            <button class="btn btn-outline btn-sm" onclick="insertSeparator('note')" title="הוסף הודעה">+ הודעה</button>
             <button class="btn btn-gold btn-sm" onclick="fillShabbatZmanim()" title="מלא זמני שבת אוטומטית" id="fill-shabbat-btn" style="display:none;">
               ⚡ מלא זמני שבת
             </button>
@@ -1679,6 +1680,10 @@ function insertSeparator(type) {
     const name = prompt('שם היום (לדוגמה: יום א - חג שבועות):');
     if (!name) return;
     insert = '\n=== ' + name + ' ===\n';
+  } else if (type === 'note') {
+    const text = prompt('טקסט ההודעה:');
+    if (!text) return;
+    insert = '\n~ ' + text + ' ~\n';
   } else {
     insert = '\n---\n';
   }
