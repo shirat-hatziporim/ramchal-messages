@@ -1167,10 +1167,16 @@ async function loadZmanim() {
     if (!parasha) {
       try {
         // Hebcal shabbat API - מחזיר את השבת הקרובה כולל פרשה
-        const pResp = await fetch(`https://www.hebcal.com/shabbat?cfg=json&latitude=31.6219&longitude=35.1469&tzid=Asia/Jerusalem&m=0`);
+        // שימוש ב-calendar API עם התאריך הספציפי שנבחר
+        const [py, pm, pd] = date.split('-');
+        const pResp = await fetch(`https://www.hebcal.com/hebcal?v=1&cfg=json&maj=on&min=off&F=on&year=${py}&month=${pm}&ss=off&mf=off&c=off&geo=none&m=0&s=on`);
         const pData = await pResp.json();
-        const pItem = (pData.items||[]).find(i => i.category === 'parashat');
-        if (pItem) parasha = translateParasha(pItem.title);
+        // חפש פרשה לשבת הרלוונטית (באותו שבוע)
+        const pItem = (pData.items||[]).find(i => i.category === 'parashat' && i.date === date);
+        // אם לא נמצא בתאריך המדויק — קח את הפרשה הכי קרובה
+        const pItemFallback = (pData.items||[]).find(i => i.category === 'parashat');
+        const found = pItem || pItemFallback;
+        if (found) parasha = translateParasha(found.title);
       } catch(e) {
         // נסה את ה-endpoint הישן כגיבוי
         try {
