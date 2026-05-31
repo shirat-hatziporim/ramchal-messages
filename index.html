@@ -1910,8 +1910,11 @@ function showAlert(id, msg, type) {
 
 // ===== PARASHA TRANSLATE =====
 function translateParasha(n) {
+  if (!n) return '';
+  // הסר "Parashat " מהתחלה אם קיים
+  n = n.replace(/^Parashat\s+/i, '').trim();
   const t = {
-    "Bereshit":"בראשית","Noach":"נח","Lech-Lecha":"לך לך","Vayera":"וירא",
+    "Bereshit":"בראשית","Noach":"נח","Lech-Lecha":"לך לך","Lech Lecha":"לך לך","Vayera":"וירא",
     "Chayei Sara":"חיי שרה","Toldot":"תולדות","Vayetzei":"ויצא","Vayishlach":"וישלח",
     "Vayeshev":"וישב","Miketz":"מקץ","Vayigash":"ויגש","Vayechi":"ויחי",
     "Shemot":"שמות","Vaera":"וארא","Bo":"בא","Beshalach":"בשלח",
@@ -1921,18 +1924,24 @@ function translateParasha(n) {
     "Metzora":"מצורע","Tazria-Metzora":"תזריע-מצורע","Achrei Mot":"אחרי מות",
     "Kedoshim":"קדושים","Achrei Mot-Kedoshim":"אחרי מות-קדושים","Emor":"אמור",
     "Behar":"בהר","Bechukotai":"בחוקותי","Behar-Bechukotai":"בהר-בחוקותי",
-    "Bamidbar":"במדבר","Nasso":"נשא","Beha\'alotcha":"בהעלותך","Sh\'lach":"שלח לך",
-    "Korach":"קרח","Chukat":"חקת","Balak":"בלק","Pinchas":"פינחס",
+    "Bamidbar":"במדבר","Nasso":"נשא","Naso":"נשא",
+    "Beha'alotcha":"בהעלותך","Beha'alotcha":"בהעלותך","Behaalotcha":"בהעלותך",
+    "Sh'lach":"שלח לך","Shelach":"שלח לך","Shlach":"שלח לך",
+    "Korach":"קרח","Chukat":"חקת","Chukkat":"חקת","Balak":"בלק","Pinchas":"פינחס",
     "Matot":"מטות","Masei":"מסעי","Matot-Masei":"מטות-מסעי","Devarim":"דברים",
-    "Vaetchanan":"ואתחנן","Eikev":"עקב","Re\'eh":"ראה","Shoftim":"שופטים",
+    "Vaetchanan":"ואתחנן","Eikev":"עקב","Re'eh":"ראה","Reeh":"ראה","Shoftim":"שופטים",
     "Ki Teitzei":"כי תצא","Ki Tavo":"כי תבוא","Nitzavim":"נצבים",
-    "Vayeilech":"וילך","Nitzavim-Vayeilech":"נצבים-וילך","Ha\'Azinu":"האזינו",
-    "Vezot Haberakhah":"וזאת הברכה"
+    "Vayeilech":"וילך","Nitzavim-Vayeilech":"נצבים-וילך","Ha'Azinu":"האזינו","Haazinu":"האזינו",
+    "Vezot Haberakhah":"וזאת הברכה","Vzot Haberakhah":"וזאת הברכה"
   };
+  // חיפוש מדויק
+  if (t[n]) return t[n];
+  // חיפוש חלקי
   for (const [e,h] of Object.entries(t)) {
-    if (n && (n.includes(e) || e.includes(n))) return h;
+    if (n.toLowerCase() === e.toLowerCase()) return h;
+    if (n.includes(e) || e.includes(n)) return h;
   }
-  return n || '';
+  return n;
 }
 
 // ===== SYNC =====
