@@ -1176,7 +1176,15 @@ async function loadZmanim() {
         // אם לא נמצא בתאריך המדויק — קח את הפרשה הכי קרובה
         const pItemFallback = (pData.items||[]).find(i => i.category === 'parashat');
         const found = pItem || pItemFallback;
-        if (found) parasha = translateParasha(found.title);
+        if (found) {
+          // השתמש בשדה העברי ישירות אם קיים, אחרת תרגם
+          if (found.hebrew) {
+            // found.hebrew = "פרשת שלח לך" — הסר "פרשת " מהתחלה
+            parasha = found.hebrew.replace(/^פרשת\s+/, '').trim();
+          } else {
+            parasha = translateParasha(found.title);
+          }
+        }
       } catch(e) {
         // נסה את ה-endpoint הישן כגיבוי
         try {
@@ -1184,7 +1192,13 @@ async function loadZmanim() {
           const pResp2 = await fetch(`https://www.hebcal.com/hebcal?v=1&cfg=json&maj=off&min=off&F=on&year=${y}&month=${m}&ss=off&mf=off&c=off&geo=none&m=0&s=on`);
           const pData2 = await pResp2.json();
           const pItem2 = (pData2.items||[]).find(i => i.date === date && i.category === 'parashat');
-          if (pItem2) parasha = translateParasha(pItem2.title);
+          if (pItem2) {
+            if (pItem2.hebrew) {
+              parasha = pItem2.hebrew.replace(/^פרשת\s+/, '').trim();
+            } else {
+              parasha = translateParasha(pItem2.title);
+            }
+          }
         } catch(e2) {}
       }
     }
