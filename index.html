@@ -1169,7 +1169,7 @@ async function loadZmanim() {
         // Hebcal shabbat API - מחזיר את השבת הקרובה כולל פרשה
         // שימוש ב-calendar API עם התאריך הספציפי שנבחר
         const [py, pm, pd] = date.split('-');
-        const pResp = await fetch(`https://www.hebcal.com/hebcal?v=1&cfg=json&maj=on&min=off&F=on&year=${py}&month=${pm}&ss=off&mf=off&c=off&geo=none&m=0&s=on`);
+        const pResp = await fetch(`https://www.hebcal.com/hebcal?v=1&cfg=json&maj=on&min=off&F=on&year=${py}&month=${pm}&ss=off&mf=off&c=off&geo=none&m=0&s=on&i=on`);
         const pData = await pResp.json();
         // חפש פרשה לשבת הרלוונטית (באותו שבוע)
         const pItem = (pData.items||[]).find(i => i.category === 'parashat' && i.date === date);
@@ -1189,7 +1189,7 @@ async function loadZmanim() {
         // נסה את ה-endpoint הישן כגיבוי
         try {
           const [y, m, d2] = date.split('-');
-          const pResp2 = await fetch(`https://www.hebcal.com/hebcal?v=1&cfg=json&maj=off&min=off&F=on&year=${y}&month=${m}&ss=off&mf=off&c=off&geo=none&m=0&s=on`);
+          const pResp2 = await fetch(`https://www.hebcal.com/hebcal?v=1&cfg=json&maj=off&min=off&F=on&year=${y}&month=${m}&ss=off&mf=off&c=off&geo=none&m=0&s=on&i=on`);
           const pData2 = await pResp2.json();
           const pItem2 = (pData2.items||[]).find(i => i.date === date && i.category === 'parashat');
           if (pItem2) {
