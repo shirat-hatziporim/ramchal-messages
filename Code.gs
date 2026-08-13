@@ -14,6 +14,7 @@ const CONFIG = {
   MINCHA_BEFORE_SHKIA_MIN: 20,
   MAARIV_AFTER_SHKIA_MIN: 35,
   SHACHARIT_BEFORE_SOF_KRIA_MIN: 40,
+  SHACHARIT_LATEST: "08:40",
   AVOT_BANIM_BEFORE_MINCHA_MIN: 40,
   MINCHA_SHABBAT_BEFORE_SHKIA_MIN: 40,
   MAARIV_MOTZASH_AFTER_TZET_MIN: 10,
@@ -72,13 +73,17 @@ function getZmanimForShabbat() {
   const sofZmanKsh   = parseTime(times.sofZmanShma);
   const mincha       = subtractMinutes(shkia, CONFIG.MINCHA_BEFORE_SHKIA_MIN);
   const maarivLeil   = addMinutes(shkia, CONFIG.MAARIV_AFTER_SHKIA_MIN);
-  const shacharit    = subtractMinutes(sofZmanKsh, CONFIG.SHACHARIT_BEFORE_SOF_KRIA_MIN);
+  let shacharit      = subtractMinutes(sofZmanKsh, CONFIG.SHACHARIT_BEFORE_SOF_KRIA_MIN);
+  // חסם: שחרית לא מאוחרת מ-CONFIG.SHACHARIT_LATEST
+  const shacharitCapped = toMinutes(shacharit) > toMinutes(CONFIG.SHACHARIT_LATEST);
+  if (shacharitCapped) shacharit = CONFIG.SHACHARIT_LATEST;
   const minchaShab   = subtractMinutes(shkia, CONFIG.MINCHA_SHABBAT_BEFORE_SHKIA_MIN);
   const avotBanim    = subtractMinutes(minchaShab, CONFIG.AVOT_BANIM_BEFORE_MINCHA_MIN);
   const maarivMotzash = addMinutes(tzet, CONFIG.MAARIV_MOTZASH_AFTER_TZET_MIN);
 
   return { shabbatDate, shkia, tzet, sofZmanKsh,
-           mincha, maarivLeil, shacharit, minchaShab, avotBanim, maarivMotzash };
+           mincha, maarivLeil, shacharit, minchaShab, avotBanim, maarivMotzash,
+           shacharitCapped };
 }
 
 // ==================== הודעת טקסט לוואטסאפ ====================
@@ -92,7 +97,8 @@ function buildPlainMessage(z, parasha) {
     + "קבלת שבת בנעימה\n"
     + "מעריב ליל שבת: *" + z.maarivLeil + "* (35 דק' אחרי השקיעה)\n"
     + "\n"
-    + "שחרית: *" + z.shacharit + "* (40 דק' לפני סוף זמן ק\"ש)\n"
+    + "שחרית: *" + z.shacharit + "*"
+    + (z.shacharitCapped ? "" : " (" + CONFIG.SHACHARIT_BEFORE_SOF_KRIA_MIN + " דק' לפני סוף זמן ק\"ש)") + "\n"
     + "סוף זמן ק\"ש (גר\"א): *" + z.sofZmanKsh + "*\n"
     + "קידושא רבא לאחר התפילה\n"
     + "\n"
@@ -204,6 +210,13 @@ function addMinutes(t, m) {
 }
 
 function subtractMinutes(t, m) { return addMinutes(t, -m); }
+
+// המרת "HH:MM" למספר דקות מחצות — להשוואת שעות
+function toMinutes(t) {
+  if (!t || t === "--:--") return 0;
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
 
 function getHebrewDate(date) {
   try {
@@ -410,7 +423,8 @@ function buildHtmlEmail(z, parasha) {
     + '<tr><td colspan="2" style="text-align:center;font-size:12px;color:#888;font-style:italic;padding:5px 0;border-bottom:1px dotted #ccc;">- קבלת שבת בנעימה -</td></tr>'
     + '<tr><td style="font-size:13px;color:#333;padding:5px 2px;border-bottom:1px dotted #ccc;">מעריב ליל שבת<br><span style="font-size:10px;color:#aaa;">35 דק\' אחרי השקיעה</span></td>'
     + '<td style="font-size:16px;font-weight:bold;color:#1a3a5c;text-align:center;direction:ltr;border-bottom:1px dotted #ccc;">' + z.maarivLeil + '</td></tr>'
-    + '<tr><td style="font-size:13px;color:#333;padding:5px 2px;border-bottom:1px dotted #ccc;">שחרית<br><span style="font-size:10px;color:#aaa;">40 דק\' לפני סוף זמן ק"ש</span></td>'
+    + '<tr><td style="font-size:13px;color:#333;padding:5px 2px;border-bottom:1px dotted #ccc;">שחרית'
+    + (z.shacharitCapped ? '' : '<br><span style="font-size:10px;color:#aaa;">' + CONFIG.SHACHARIT_BEFORE_SOF_KRIA_MIN + ' דק\' לפני סוף זמן ק"ש</span>') + '</td>'
     + '<td style="font-size:16px;font-weight:bold;color:#1a3a5c;text-align:center;direction:ltr;border-bottom:1px dotted #ccc;">' + z.shacharit + '</td></tr>'
     + '<tr><td style="font-size:13px;color:#333;padding:5px 2px;border-bottom:1px dotted #ccc;">סוף זמן ק"ש (גר"א)</td>'
     + '<td style="font-size:16px;font-weight:bold;color:#1a3a5c;text-align:center;direction:ltr;border-bottom:1px dotted #ccc;">' + z.sofZmanKsh + '</td></tr>'
