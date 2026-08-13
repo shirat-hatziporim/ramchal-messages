@@ -970,6 +970,10 @@
             <input type="number" id="setting-shacharit" value="40" min="5" max="60">
           </div>
           <div class="form-group">
+            <label>שחרית — לא יאוחר מהשעה</label>
+            <input type="time" id="setting-shacharit-latest" value="08:40">
+          </div>
+          <div class="form-group">
             <label>מנחה שבת — לפני שקיעה</label>
             <input type="number" id="setting-mincha-shab" value="40" min="5" max="60">
           </div>
@@ -1078,6 +1082,7 @@ const STATE = {
     mode: 'test',
     webhook: 'https://script.google.com/macros/s/AKfycbwf0HAdQHgkmxHSoUAkrhuiyz_GL0h2ZyXfr1C7gs9ii6phXFQikbw2o_GxDaWzo69acA/exec',
     mincha: 20, maariv: 35, shacharit: 40, minchaShab: 40, motzash: 10,
+    shacharitLatest: '08:40',
     autoSend: true, holidayAlert: true, confirmSend: true
   }))
 };
@@ -1123,6 +1128,19 @@ function addMins(t, m) {
 
 function subMins(t, m) { return addMins(t, -m); }
 
+// המרת "HH:MM" למספר דקות מחצות — להשוואת שעות
+function toMinutes(t) {
+  if (!t || t === '--:--') return 0;
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+// ההערה שמופיעה ליד שחרית — נעלמת כשהחסם מופעל
+function shacharitNote() {
+  if (!STATE.zmanim || STATE.zmanim.shacharitCapped) return '';
+  return (STATE.settings.shacharit || 40) + ' דק\' לפני סוף זמן ק"ש';
+}
+
 // ===== LOAD ZMANIM =====
 async function loadZmanim() {
   const btn = event.currentTarget;
@@ -1155,12 +1173,16 @@ async function loadZmanim() {
     const s = STATE.settings;
     const mincha = subMins(shkia, s.mincha);
     const maarivLeil = addMins(shkia, s.maariv);
-    const shacharit = subMins(sofKsh, s.shacharit);
+    let shacharit = subMins(sofKsh, s.shacharit);
+    // חסם: שחרית לא מאוחרת מהשעה שהוגדרה בהגדרות (ברירת מחדל 08:40)
+    const shacharitLatest = s.shacharitLatest || '08:40';
+    const shacharitCapped = toMinutes(shacharit) > toMinutes(shacharitLatest);
+    if (shacharitCapped) shacharit = shacharitLatest;
     const minchaShab = subMins(shkia, s.minchaShab);
     const avotBanim = subMins(minchaShab, 40);
     const maarivMotzash = addMins(tzet, s.motzash);
 
-    STATE.zmanim = { shkia, tzet, sofKsh, mincha, maarivLeil, shacharit, minchaShab, avotBanim, maarivMotzash };
+    STATE.zmanim = { shkia, tzet, sofKsh, mincha, maarivLeil, shacharit, minchaShab, avotBanim, maarivMotzash, shacharitCapped };
 
     // Get parasha — שימוש ב-shabbat endpoint שיותר אמין
     let parasha = document.getElementById('parasha-input')?.value || '';
@@ -1225,7 +1247,7 @@ function renderZmanim(z, parasha) {
     { name: 'שקיעה', note: '', time: z.shkia },
     { name: 'קבלת שבת', note: '', time: '—' },
     { name: 'מעריב ליל שבת', note: '35 דק׳ אחרי השקיעה', time: z.maarivLeil },
-    { name: 'שחרית', note: '40 דק׳ לפני סוף ק"ש', time: z.shacharit },
+    { name: 'שחרית', note: z.shacharitCapped ? '' : (STATE.settings.shacharit || 40) + ' דק׳ לפני סוף ק"ש', time: z.shacharit },
     { name: 'סוף זמן ק"ש (גר"א)', note: '', time: z.sofKsh },
     { name: 'אבות ובנים', note: '40 דק׳ לפני מנחה', time: z.avotBanim },
     { name: 'מנחה של שבת', note: '40 דק׳ לפני השקיעה', time: z.minchaShab },
@@ -1260,7 +1282,7 @@ function buildShabbatMessage(z, parasha) {
     + 'קבלת שבת בנעימה\n'
     + 'מעריב ליל שבת: ' + z.maarivLeil + ' (35 דק\' אחרי השקיעה)\n'
     + '\n'
-    + 'שחרית: ' + z.shacharit + ' (40 דק\' לפני סוף זמן ק"ש)\n'
+    + 'שחרית: ' + z.shacharit + (z.shacharitCapped ? '' : ' (' + (STATE.settings.shacharit || 40) + ' דק\' לפני סוף זמן ק"ש)') + '\n'
     + 'סוף זמן ק"ש (גר"א): ' + z.sofKsh + '\n'
     + 'קידושא רבא לאחר התפילה\n'
     + '\n'
@@ -1663,7 +1685,7 @@ function fillShabbatZmanim() {
     { find: 'שקיעה:',                   val: 'שקיעה: ' + z.shkia },
     { find: 'שקיעה / כניסת שבת:',      val: 'שקיעה / כניסת שבת: ' + z.shkia },
     { find: 'מעריב ליל שבת:',           val: "מעריב ליל שבת: " + z.maarivLeil + " (35 דק' אחרי השקיעה)" },
-    { find: 'שחרית:',                   val: "שחרית: " + z.shacharit + ' (40 דק\' לפני סוף זמן ק"ש)' },
+    { find: 'שחרית:',                   val: "שחרית: " + z.shacharit + (z.shacharitCapped ? '' : ' (' + (STATE.settings.shacharit || 40) + ' דק\' לפני סוף זמן ק"ש)') },
     { find: 'סוף זמן קש (גרא):',       val: 'סוף זמן ק"ש (גר"א): ' + z.sofKsh },
     { find: 'אבות ובנים:',              val: "אבות ובנים: " + z.avotBanim + " (40 דק' לפני מנחה)" },
     { find: 'מנחה של שבת:',             val: "מנחה של שבת: " + z.minchaShab + " (40 דק' לפני השקיעה)" },
@@ -1856,6 +1878,7 @@ function saveSettings() {
     mincha: +document.getElementById('setting-mincha').value,
     maariv: +document.getElementById('setting-maariv').value,
     shacharit: +document.getElementById('setting-shacharit').value,
+    shacharitLatest: document.getElementById('setting-shacharit-latest').value || '08:40',
     minchaShab: +document.getElementById('setting-mincha-shab').value,
     motzash: +document.getElementById('setting-motzash').value,
     autoSend: document.getElementById('toggle-auto').checked,
@@ -2065,6 +2088,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setVal('setting-mincha', s.mincha);
   setVal('setting-maariv', s.maariv);
   setVal('setting-shacharit', s.shacharit);
+  setVal('setting-shacharit-latest', s.shacharitLatest || '08:40');
   setVal('setting-mincha-shab', s.minchaShab);
   setVal('setting-motzash', s.motzash);
 
