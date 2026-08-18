@@ -2367,7 +2367,7 @@ function memberById(id) {
 
 function memberFullName(m) {
   if (!m) return '';
-  return ((m.first || '') + ' ' + (m.last || '')).trim();
+  return ((m.last || '') + ' ' + (m.first || '')).trim();
 }
 
 function memberLongName(m) {
