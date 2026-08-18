@@ -630,7 +630,15 @@ function getMembersSheets() {
     led.getRange('C:C').setNumberFormat('@');
   }
 
-  return { members: mem, ledger: led };
+  var hh = ss.getSheetByName('hh');
+  if (!hh) {
+    hh = ss.insertSheet('hh');
+    hh.appendRow(['id','year','memberId','name','rhMen','rhWomen','ykMen','ykWomen','fee','chargeId','notes']);
+    hh.getRange('A:D').setNumberFormat('@');
+    hh.getRange('J:J').setNumberFormat('@');
+  }
+
+  return { members: mem, ledger: led, hh: hh };
 }
 
 // תאריך מהגיליון → "YYYY-MM-DD" (Sheets עלול להמיר מחרוזת ל-Date)
@@ -668,7 +676,20 @@ function membersGetAll() {
     });
   }
 
-  return { members: members, ledger: ledger };
+  var hd = sh.hh.getDataRange().getValues();
+  var hh = [];
+  for (var k = 1; k < hd.length; k++) {
+    if (!hd[k][0]) continue;
+    hh.push({
+      id: String(hd[k][0]), year: String(hd[k][1] || ''), memberId: String(hd[k][2] || ''),
+      name: String(hd[k][3] || ''),
+      rhMen: Number(hd[k][4] || 0), rhWomen: Number(hd[k][5] || 0),
+      ykMen: Number(hd[k][6] || 0), ykWomen: Number(hd[k][7] || 0),
+      fee: Number(hd[k][8] || 0), chargeId: String(hd[k][9] || ''), notes: String(hd[k][10] || '')
+    });
+  }
+
+  return { members: members, ledger: ledger, hh: hh };
 }
 
 function membersUpsert(m) {
@@ -726,6 +747,43 @@ function ledgerDelete(id) {
   }
 }
 
+function hhUpsert(r) {
+  if (!r || !r.id) return;
+  var sh = getMembersSheets().hh;
+  var row = [String(r.id), String(r.year || ''), String(r.memberId || ''), String(r.name || ''),
+             Number(r.rhMen || 0), Number(r.rhWomen || 0), Number(r.ykMen || 0), Number(r.ykWomen || 0),
+             Number(r.fee || 0), String(r.chargeId || ''), r.notes || ''];
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(r.id)) {
+      sh.getRange(i + 1, 1, 1, row.length).setValues([row]);
+      return;
+    }
+  }
+  sh.appendRow(row);
+}
+
+function hhDelete(id) {
+  if (!id) return;
+  var sh = getMembersSheets().hh;
+  var data = sh.getDataRange().getValues();
+  for (var i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]) === String(id)) sh.deleteRow(i + 1);
+  }
+}
+
+// סיכום מקומות לשנה — לשימוש ידני בעורך
+function hhSummary(year) {
+  var all = membersGetAll().hh.filter(function(r) { return !year || r.year === year; });
+  var t = { count: all.length, rhMen: 0, rhWomen: 0, ykMen: 0, ykWomen: 0, fee: 0 };
+  all.forEach(function(r) {
+    t.rhMen += r.rhMen; t.rhWomen += r.rhWomen;
+    t.ykMen += r.ykMen; t.ykWomen += r.ykWomen; t.fee += r.fee;
+  });
+  Logger.log(JSON.stringify(t));
+  return t;
+}
+
 // יתרת חוב של מתפלל (חיובים פחות תשלומים)
 function memberBalanceGs(id) {
   var all = membersGetAll();
@@ -774,6 +832,18 @@ function handleMembersAction(e, output) {
 
   if (action === 'deleteLedger') {
     ledgerDelete(e.parameter.id || '');
+    output.setContent(JSON.stringify({ ok: true }));
+    return output;
+  }
+
+  if (action === 'saveHH') {
+    hhUpsert(JSON.parse(e.parameter.entry || '{}'));
+    output.setContent(JSON.stringify({ ok: true }));
+    return output;
+  }
+
+  if (action === 'deleteHH') {
+    hhDelete(e.parameter.id || '');
     output.setContent(JSON.stringify({ ok: true }));
     return output;
   }
