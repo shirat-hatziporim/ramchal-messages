@@ -533,6 +533,47 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
+  /* ===== MEMBERS ===== */
+  .members-toolbar {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--gray-light);
+  }
+  .members-toolbar input[type=search],
+  .members-toolbar select {
+    padding: 9px 12px; border: 1.5px solid var(--gray-light); border-radius: 8px;
+    font-family: inherit; font-size: 14px; background: var(--white); color: var(--text);
+  }
+  .members-toolbar input[type=search] { flex: 1; min-width: 170px; }
+  .members-toolbar input[type=search]:focus,
+  .members-toolbar select:focus { outline: none; border-color: var(--navy); }
+
+  .bal-debt { color: var(--danger); font-weight: 800; }
+  .bal-ok   { color: var(--success); font-weight: 700; }
+  .bal-zero { color: var(--gray-mid); font-weight: 600; }
+
+  .member-row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .modal-overlay-2 {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    z-index: 1000; align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal-box {
+    background: var(--white); border-radius: 16px; padding: 26px;
+    max-width: 540px; width: 100%; direction: rtl; max-height: 90vh; overflow-y: auto;
+  }
+  .modal-box h3 { font-size: 18px; font-weight: 700; color: var(--navy); margin-bottom: 16px; }
+
+  .ledger-row {
+    display: flex; align-items: center; gap: 10px; padding: 9px 0;
+    border-bottom: 1px dotted var(--gray-light); font-size: 13px;
+  }
+  .ledger-row:last-child { border-bottom: none; }
+
+  @media (max-width: 640px) {
+    .members-hide-sm { display: none; }
+    .modal-box { padding: 20px; }
+  }
+
 </style>
 </head>
 <body>
@@ -558,6 +599,7 @@
       <button class="tab-btn active" onclick="switchTab('dashboard')">לוח בקרה</button>
       <button class="tab-btn" onclick="switchTab('shabbat')">זמני שבת</button>
       <button class="tab-btn" onclick="switchTab('custom')">הודעה חופשית</button>
+      <button class="tab-btn" onclick="switchTab('members')">מתפללים</button>
       <button class="tab-btn" onclick="switchTab('history')">היסטוריה</button>
       <button class="tab-btn" onclick="switchTab('settings')">הגדרות</button>
     </div>
@@ -627,6 +669,9 @@
           </button>
           <button class="btn btn-gold btn-full" onclick="switchTab('custom')">
             ✏️ שלח הודעה חופשית
+          </button>
+          <button class="btn btn-outline btn-full" onclick="switchTab('members')">
+            👥 ניהול מתפללים
           </button>
           <button class="btn btn-outline btn-full" onclick="switchTab('history')">
             📋 צפה בהיסטוריה
@@ -912,6 +957,80 @@
     </div>
   </div>
 
+  <!-- ===== MEMBERS ===== -->
+  <div id="tab-members" class="tab-panel">
+    <div class="section-header">
+      <div>
+        <h2>מתפללים</h2>
+        <p>רשימת המתפללים, פרטי קשר ומעקב חובות</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" onclick="openBulkModal()">חיוב לכולם</button>
+        <button class="btn btn-primary" onclick="openMemberModal(null)">+ הוסף מתפלל</button>
+      </div>
+    </div>
+
+    <div id="members-alert" class="alert"></div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number" id="mstat-count">0</div>
+        <div class="stat-label">מתפללים</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="mstat-debt" style="color:var(--danger);">₪0</div>
+        <div class="stat-label">סה"כ חוב פתוח</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="mstat-debtors">0</div>
+        <div class="stat-label">חייבים</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="mstat-credit" style="color:var(--success);">₪0</div>
+        <div class="stat-label">יתרות זכות</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="members-toolbar">
+        <input type="search" placeholder="חיפוש שם, טלפון או הערה…" oninput="membersSearch(this.value)">
+        <select onchange="membersView(this.value)">
+          <option value="all">כל המתפללים</option>
+          <option value="debt">חייבים בלבד</option>
+          <option value="clear">ללא חוב</option>
+          <option value="kohen">כהנים</option>
+          <option value="levi">לויים</option>
+        </select>
+        <select onchange="membersSort(this.value)">
+          <option value="name">מיון לפי שם משפחה</option>
+          <option value="debt">מיון לפי חוב</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="exportMembersCSV()">ייצוא CSV</button>
+        <button class="btn btn-outline btn-sm" onclick="pushAllMembers(false)">סנכרן לשרת</button>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <div id="members-empty" style="text-align:center;padding:40px;color:var(--gray-mid);display:none;">
+          <div style="font-size:48px;margin-bottom:12px;">👥</div>
+          <div>לא נמצאו מתפללים</div>
+        </div>
+        <table class="history-table" id="members-table">
+          <thead>
+            <tr>
+              <th style="width:36px;">#</th>
+              <th>שם</th>
+              <th class="members-hide-sm" style="width:70px;">ייחוס</th>
+              <th class="members-hide-sm" style="width:110px;">טלפון</th>
+              <th style="width:100px;text-align:center;">יתרה</th>
+              <th style="width:150px;">פעולות</th>
+            </tr>
+          </thead>
+          <tbody id="members-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== SETTINGS ===== -->
   <div id="tab-settings" class="tab-panel">
     <div class="section-header">
@@ -1071,11 +1190,89 @@
   </div>
 </div>
 
+<!-- Member Modal -->
+<div id="member-modal" class="modal-overlay-2">
+  <div class="modal-box">
+    <h3 id="member-modal-title">הוספת מתפלל</h3>
+    <div class="grid-2" style="gap:0 14px;">
+      <div class="form-group"><label>שם משפחה</label><input type="text" id="mf-last"></div>
+      <div class="form-group"><label>שם פרטי</label><input type="text" id="mf-first"></div>
+      <div class="form-group"><label>שם האב</label><input type="text" id="mf-father" placeholder="הרב ..."></div>
+      <div class="form-group">
+        <label>ייחוס</label>
+        <select id="mf-yichus">
+          <option value="">ישראל</option>
+          <option value="כהן">כהן</option>
+          <option value="לוי">לוי</option>
+        </select>
+      </div>
+      <div class="form-group"><label>טלפון</label><input type="tel" id="mf-phone" style="direction:ltr;"></div>
+      <div class="form-group"><label>מייל</label><input type="email" id="mf-email" style="direction:ltr;"></div>
+    </div>
+    <div class="form-group"><label>כתובת</label><input type="text" id="mf-address"></div>
+    <div class="form-group"><label>הערות</label><textarea id="mf-notes" rows="2"></textarea></div>
+    <div style="display:flex;gap:10px;justify-content:space-between;margin-top:6px;">
+      <button class="btn btn-danger btn-sm" id="mf-delete" onclick="deleteMemberForm()">מחק</button>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-outline" onclick="closeMemberModal()">ביטול</button>
+        <button class="btn btn-primary" onclick="saveMemberForm()">שמור</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Ledger Modal -->
+<div id="ledger-modal" class="modal-overlay-2">
+  <div class="modal-box">
+    <h3 id="ledger-modal-title">כרטיס מתפלל</h3>
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;padding-bottom:12px;border-bottom:1.5px solid var(--gray-light);">
+      <span style="font-size:13px;color:var(--gray-mid);">יתרה נוכחית:</span>
+      <span id="ledger-balance" style="font-size:22px;direction:ltr;">₪0</span>
+    </div>
+
+    <div class="grid-2" style="gap:0 14px;">
+      <div class="form-group"><label>סכום (₪)</label><input type="number" id="lf-amount" min="0" step="1" style="direction:ltr;"></div>
+      <div class="form-group"><label>תאריך</label><input type="date" id="lf-date"></div>
+    </div>
+    <div class="form-group"><label>פירוט</label><input type="text" id="lf-desc" placeholder="עלייה לתורה, דמי חבר, נדבה…"></div>
+    <div style="display:flex;gap:10px;margin-bottom:16px;">
+      <button class="btn btn-gold btn-full btn-sm" onclick="addLedgerEntry('charge')">+ הוסף חיוב</button>
+      <button class="btn btn-success btn-full btn-sm" onclick="addLedgerEntry('payment')">− רשום תשלום</button>
+    </div>
+
+    <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:6px;">תנועות</div>
+    <div id="ledger-list" style="max-height:230px;overflow-y:auto;"></div>
+
+    <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-outline" onclick="closeLedgerModal()">סגור</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Charge Modal -->
+<div id="bulk-modal" class="modal-overlay-2">
+  <div class="modal-box" style="max-width:420px;">
+    <h3>חיוב לכל המתפללים</h3>
+    <p style="font-size:13px;color:var(--gray-mid);margin-bottom:14px;line-height:1.6;">
+      החיוב יתווסף לכרטיס של כל מתפלל ברשימה.
+    </p>
+    <div class="form-group"><label>סכום (₪)</label><input type="number" id="bf-amount" min="0" step="1" style="direction:ltr;"></div>
+    <div class="form-group"><label>תאריך</label><input type="date" id="bf-date"></div>
+    <div class="form-group"><label>פירוט</label><input type="text" id="bf-desc" placeholder="דמי חבר חודשי"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-outline" onclick="closeBulkModal()">ביטול</button>
+      <button class="btn btn-primary" onclick="applyBulkCharge()">חייב את כולם</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ===== STATE =====
 const STATE = {
   zmanim: null,
   history: JSON.parse(localStorage.getItem('msg_history') || '[]'),
+  members: JSON.parse(localStorage.getItem('shul_members') || '[]'),
+  ledger: JSON.parse(localStorage.getItem('shul_ledger') || '[]'),
   settings: JSON.parse(localStorage.getItem('msg_settings') || JSON.stringify({
     shul: 'בית כנסת הרמח"ל מיצד',
     email: 'metzad-chevra@googlegroups.com',
@@ -1100,6 +1297,7 @@ function switchTab(tab) {
     }
   });
   if (tab === 'history') renderHistory();
+  if (tab === 'members') renderMembers();
   if (tab === 'dashboard') updateDashboard();
   if (tab === 'shabbat' && !STATE.zmanim) {
     // טען זמנים אוטומטית בכניסה ראשונה לטאב
@@ -1987,6 +2185,434 @@ function translateParasha(n) {
   return n;
 }
 
+// ===== מתפללים וחובות =====
+var SEED_MEMBERS = [
+  ["איטח","מרדכי","הרב יהודה",""],
+  ["אפשטיין","נועם","","כהן"],
+  ["בן שלמה","אברהם","הרב שובאל",""],
+  ["ברגר","יהודה","","כהן"],
+  ["בקר","ראובן יהודה","",""],
+  ["ג'יקובס","משה נדביה","",""],
+  ["גולד","משה דניאל","הרב בן ציון",""],
+  ["גיטלר","שלמה זלמן","הרב משה",""],
+  ["גרזון","יעקב","הרב משה",""],
+  ["דיינר","גדליה","הרב הרצל",""],
+  ["ויכנסקי","ניסן","הרב אברהם",""],
+  ["זייגר","מרדכי","","כהן"],
+  ["זילברמן","יהודה","",""],
+  ["זילברשטיין","דוד חיים","הרב עובדיה",""],
+  ["זילברשטיין","עובדיה","הרב אברהם",""],
+  ["זלוטניק","ישראל שלום","",""],
+  ["טרעפ","חיים ליפא","",""],
+  ["לוי","הושע","הרב משה","לוי"],
+  ["מובשוביץ","עמיחי","הרב אליסף","לוי"],
+  ["מילמן","משה חיים","",""],
+  ["מרקוס","יעקב ישראל","",""],
+  ["סגל","מרדכי","הרב ארנון",""],
+  ["סוכות","נפתלי","",""],
+  ["פורוש","בן ציון","הרב רפאל מנחם אלימלך",""],
+  ["פונק","ראובן","הרב יוסף",""],
+  ["פנחסוביץ","בנימין","הרב שמעון",""],
+  ["פרבר","אלימלך","הרב אלתר פנחס",""],
+  ["קוק","יעקב","הרב דוב","כהן"],
+  ["קרקינובסקי","שלום","הרב משה",""],
+  ["רוזנטל","שלמה יעקב","הרב משה",""],
+  ["שטיבל","גדליה","הרב רונן",""]
+];
+
+var MFILTER = { q: '', view: 'all', sort: 'name' };
+var _editingMemberId = null;
+var _ledgerMemberId = null;
+
+function escHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function seedMembersIfNeeded() {
+  if (STATE.members && STATE.members.length) return;
+  STATE.members = SEED_MEMBERS.map(function(r, i) {
+    return { id: 'm' + (i + 1), last: r[0], first: r[1], father: r[2], yichus: r[3],
+             phone: '', email: '', address: '', notes: '', active: true };
+  });
+  saveMembersLocal();
+}
+
+function saveMembersLocal() { localStorage.setItem('shul_members', JSON.stringify(STATE.members || [])); }
+function saveLedgerLocal()  { localStorage.setItem('shul_ledger',  JSON.stringify(STATE.ledger  || [])); }
+
+function memberById(id) {
+  return (STATE.members || []).filter(function(m) { return m.id === id; })[0] || null;
+}
+
+function memberFullName(m) {
+  if (!m) return '';
+  return ((m.first || '') + ' ' + (m.last || '')).trim();
+}
+
+function memberLongName(m) {
+  if (!m) return '';
+  var s = memberFullName(m);
+  if (m.father) s += ' בן ' + m.father;
+  if (m.yichus) s += ' (' + m.yichus + ')';
+  return s;
+}
+
+function memberBalance(id) {
+  return (STATE.ledger || []).reduce(function(sum, t) {
+    if (t.memberId !== id) return sum;
+    var amt = Number(t.amount || 0);
+    return sum + (t.type === 'payment' ? -amt : amt);
+  }, 0);
+}
+
+function fmtMoney(n) {
+  var v = Math.round(Number(n || 0) * 100) / 100;
+  return '₪' + v.toLocaleString('he-IL', { maximumFractionDigits: 2 });
+}
+
+function balClass(n) {
+  if (n > 0.001) return 'bal-debt';
+  if (n < -0.001) return 'bal-ok';
+  return 'bal-zero';
+}
+
+// ---------- רינדור ----------
+function renderMembers() {
+  seedMembersIfNeeded();
+  var all = STATE.members || [];
+
+  var totalDebt = 0, debtors = 0, credit = 0;
+  all.forEach(function(m) {
+    var b = memberBalance(m.id);
+    if (b > 0.001) { totalDebt += b; debtors++; }
+    else if (b < -0.001) { credit += -b; }
+  });
+
+  var setTxt = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+  setTxt('mstat-count', all.length);
+  setTxt('mstat-debt', fmtMoney(totalDebt));
+  setTxt('mstat-debtors', debtors);
+  setTxt('mstat-credit', fmtMoney(credit));
+
+  var q = (MFILTER.q || '').trim();
+  var list = all.filter(function(m) {
+    if (q) {
+      var hay = [m.first, m.last, m.father, m.phone, m.notes].join(' ');
+      if (hay.indexOf(q) === -1) return false;
+    }
+    var b = memberBalance(m.id);
+    if (MFILTER.view === 'debt' && !(b > 0.001)) return false;
+    if (MFILTER.view === 'clear' && b > 0.001) return false;
+    if (MFILTER.view === 'kohen' && m.yichus !== 'כהן') return false;
+    if (MFILTER.view === 'levi' && m.yichus !== 'לוי') return false;
+    return true;
+  });
+
+  if (MFILTER.sort === 'debt') {
+    list.sort(function(a, b) { return memberBalance(b.id) - memberBalance(a.id); });
+  } else {
+    list.sort(function(a, b) {
+      return (a.last || '').localeCompare(b.last || '', 'he') ||
+             (a.first || '').localeCompare(b.first || '', 'he');
+    });
+  }
+
+  var body = document.getElementById('members-body');
+  var empty = document.getElementById('members-empty');
+  var table = document.getElementById('members-table');
+  if (!body) return;
+
+  if (!list.length) {
+    body.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    if (table) table.style.display = 'none';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (table) table.style.display = '';
+
+  body.innerHTML = list.map(function(m, i) {
+    var b = memberBalance(m.id);
+    var yb = m.yichus === 'כהן' ? '<span class="badge badge-gold">כהן</span>'
+           : m.yichus === 'לוי' ? '<span class="badge badge-navy">לוי</span>' : '';
+    return '<tr>'
+      + '<td style="color:var(--gray-mid);font-size:12px;">' + (i + 1) + '</td>'
+      + '<td><div style="font-weight:600;">' + escHtml(memberFullName(m)) + '</div>'
+      + (m.father ? '<div style="font-size:11px;color:var(--gray-mid);">בן ' + escHtml(m.father) + '</div>' : '')
+      + '</td>'
+      + '<td class="members-hide-sm">' + yb + '</td>'
+      + '<td class="members-hide-sm" style="direction:ltr;text-align:right;font-size:13px;">' + escHtml(m.phone || '') + '</td>'
+      + '<td class="' + balClass(b) + '" style="direction:ltr;text-align:center;white-space:nowrap;">' + fmtMoney(b) + '</td>'
+      + '<td><div class="member-row-actions">'
+      + '<button class="btn btn-outline btn-sm" onclick="openLedger(\'' + m.id + '\')">כרטיס</button>'
+      + '<button class="btn btn-outline btn-sm" onclick="openMemberModal(\'' + m.id + '\')">עריכה</button>'
+      + '</div></td>'
+      + '</tr>';
+  }).join('');
+}
+
+function membersSearch(v) { MFILTER.q = v; renderMembers(); }
+function membersView(v)   { MFILTER.view = v; renderMembers(); }
+function membersSort(v)   { MFILTER.sort = v; renderMembers(); }
+
+// ---------- הוספה / עריכה ----------
+function openMemberModal(id) {
+  _editingMemberId = id || null;
+  var m = id ? memberById(id) : null;
+  var set = function(f, v) { var el = document.getElementById('mf-' + f); if (el) el.value = v || ''; };
+  set('last', m && m.last); set('first', m && m.first); set('father', m && m.father);
+  set('yichus', m ? (m.yichus || '') : ''); set('phone', m && m.phone);
+  set('email', m && m.email); set('address', m && m.address); set('notes', m && m.notes);
+  document.getElementById('member-modal-title').textContent = m ? 'עריכת מתפלל' : 'הוספת מתפלל';
+  var del = document.getElementById('mf-delete');
+  if (del) del.style.display = m ? '' : 'none';
+  document.getElementById('member-modal').style.display = 'flex';
+}
+
+function closeMemberModal() {
+  document.getElementById('member-modal').style.display = 'none';
+  _editingMemberId = null;
+}
+
+function saveMemberForm() {
+  var get = function(f) { var el = document.getElementById('mf-' + f); return el ? el.value.trim() : ''; };
+  var last = get('last'), first = get('first');
+  if (!last && !first) { alert('יש להזין לפחות שם פרטי או שם משפחה'); return; }
+
+  var m = _editingMemberId ? memberById(_editingMemberId) : null;
+  if (!m) {
+    m = { id: 'm' + Date.now(), active: true };
+    STATE.members = STATE.members || [];
+    STATE.members.push(m);
+  }
+  m.last = last; m.first = first; m.father = get('father'); m.yichus = get('yichus');
+  m.phone = get('phone'); m.email = get('email'); m.address = get('address'); m.notes = get('notes');
+
+  saveMembersLocal();
+  syncSaveMember(m);
+  closeMemberModal();
+  renderMembers();
+  showAlert('members', '✅ המתפלל נשמר', 'success');
+}
+
+function deleteMemberForm() {
+  if (!_editingMemberId) return;
+  var m = memberById(_editingMemberId);
+  if (!m) return;
+  if (!confirm('למחוק את ' + memberFullName(m) + ' וכל רישומי החוב שלו?')) return;
+  var id = m.id;
+  STATE.members = (STATE.members || []).filter(function(x) { return x.id !== id; });
+  STATE.ledger  = (STATE.ledger  || []).filter(function(t) { return t.memberId !== id; });
+  saveMembersLocal(); saveLedgerLocal();
+  syncDeleteMember(id);
+  closeMemberModal();
+  renderMembers();
+  showAlert('members', '🗑️ המתפלל נמחק', 'success');
+}
+
+// ---------- כרטיס חוב ----------
+function openLedger(id) {
+  var m = memberById(id);
+  if (!m) return;
+  _ledgerMemberId = id;
+  document.getElementById('ledger-modal-title').textContent = memberLongName(m);
+  var dt = document.getElementById('lf-date');
+  if (dt) dt.value = new Date().toISOString().split('T')[0];
+  var am = document.getElementById('lf-amount'); if (am) am.value = '';
+  var ds = document.getElementById('lf-desc');   if (ds) ds.value = '';
+  renderLedger();
+  document.getElementById('ledger-modal').style.display = 'flex';
+}
+
+function closeLedgerModal() {
+  document.getElementById('ledger-modal').style.display = 'none';
+  _ledgerMemberId = null;
+}
+
+function renderLedger() {
+  var id = _ledgerMemberId;
+  if (!id) return;
+  var b = memberBalance(id);
+  var balEl = document.getElementById('ledger-balance');
+  if (balEl) {
+    balEl.className = balClass(b);
+    balEl.textContent = fmtMoney(b) + (b > 0.001 ? ' לתשלום' : (b < -0.001 ? ' זכות' : ''));
+  }
+  var rows = (STATE.ledger || []).filter(function(t) { return t.memberId === id; })
+    .sort(function(a, b2) { return (b2.date || '').localeCompare(a.date || '') || (b2.id > a.id ? 1 : -1); });
+
+  var box = document.getElementById('ledger-list');
+  if (!box) return;
+  if (!rows.length) {
+    box.innerHTML = '<div style="text-align:center;color:var(--gray-mid);padding:18px 0;font-size:13px;">אין תנועות בכרטיס</div>';
+    return;
+  }
+  box.innerHTML = rows.map(function(t) {
+    var isPay = t.type === 'payment';
+    var amt = (isPay ? '−' : '+') + fmtMoney(Math.abs(Number(t.amount || 0))).replace('₪', '₪');
+    return '<div class="ledger-row">'
+      + '<div style="flex:1;">'
+      +   '<div style="font-weight:600;">' + (isPay ? 'תשלום' : 'חיוב') + (t.desc ? ' · ' + escHtml(t.desc) : '') + '</div>'
+      +   '<div style="font-size:11px;color:var(--gray-mid);">' + escHtml(t.date || '') + '</div>'
+      + '</div>'
+      + '<div class="' + (isPay ? 'bal-ok' : 'bal-debt') + '" style="direction:ltr;white-space:nowrap;">' + amt + '</div>'
+      + '<button class="btn btn-outline btn-sm" onclick="deleteLedgerEntry(\'' + t.id + '\')" title="מחק">✕</button>'
+      + '</div>';
+  }).join('');
+}
+
+function addLedgerEntry(type) {
+  var id = _ledgerMemberId;
+  if (!id) return;
+  var amtEl = document.getElementById('lf-amount');
+  var amt = Number(amtEl ? amtEl.value : 0);
+  if (!amt || amt <= 0) { alert('יש להזין סכום חיובי'); return; }
+  var entry = {
+    id: 't' + Date.now() + Math.floor(Math.random() * 1000),
+    memberId: id,
+    date: (document.getElementById('lf-date') || {}).value || new Date().toISOString().split('T')[0],
+    type: type,
+    amount: amt,
+    desc: ((document.getElementById('lf-desc') || {}).value || '').trim()
+  };
+  STATE.ledger = STATE.ledger || [];
+  STATE.ledger.push(entry);
+  saveLedgerLocal();
+  syncSaveLedger(entry);
+  if (amtEl) amtEl.value = '';
+  var ds = document.getElementById('lf-desc'); if (ds) ds.value = '';
+  renderLedger();
+  renderMembers();
+}
+
+function deleteLedgerEntry(tid) {
+  if (!confirm('למחוק את התנועה?')) return;
+  STATE.ledger = (STATE.ledger || []).filter(function(t) { return t.id !== tid; });
+  saveLedgerLocal();
+  syncDeleteLedger(tid);
+  renderLedger();
+  renderMembers();
+}
+
+// ---------- חיוב מרוכז ----------
+function openBulkModal() {
+  var dt = document.getElementById('bf-date'); if (dt) dt.value = new Date().toISOString().split('T')[0];
+  var am = document.getElementById('bf-amount'); if (am) am.value = '';
+  var ds = document.getElementById('bf-desc'); if (ds) ds.value = '';
+  document.getElementById('bulk-modal').style.display = 'flex';
+}
+function closeBulkModal() { document.getElementById('bulk-modal').style.display = 'none'; }
+
+function applyBulkCharge() {
+  var amt = Number((document.getElementById('bf-amount') || {}).value || 0);
+  if (!amt || amt <= 0) { alert('יש להזין סכום חיובי'); return; }
+  var date = (document.getElementById('bf-date') || {}).value || new Date().toISOString().split('T')[0];
+  var desc = ((document.getElementById('bf-desc') || {}).value || '').trim();
+  var targets = (STATE.members || []).filter(function(m) { return m.active !== false; });
+  if (!targets.length) return;
+  if (!confirm('לחייב ' + targets.length + ' מתפללים ב-' + fmtMoney(amt) + '?')) return;
+
+  var added = [];
+  targets.forEach(function(m, i) {
+    var entry = {
+      id: 't' + Date.now() + '_' + i,
+      memberId: m.id, date: date, type: 'charge', amount: amt, desc: desc
+    };
+    STATE.ledger.push(entry);
+    added.push(entry);
+  });
+  saveLedgerLocal();
+  syncSaveLedgerBatch(added);
+  closeBulkModal();
+  renderMembers();
+  showAlert('members', '✅ חויבו ' + targets.length + ' מתפללים', 'success');
+}
+
+// ---------- ייצוא ----------
+function exportMembersCSV() {
+  var head = ['שם משפחה', 'שם פרטי', 'שם האב', 'ייחוס', 'טלפון', 'מייל', 'כתובת', 'הערות', 'יתרה'];
+  var lines = [head.join(',')];
+  (STATE.members || []).slice().sort(function(a, b) {
+    return (a.last || '').localeCompare(b.last || '', 'he');
+  }).forEach(function(m) {
+    var row = [m.last, m.first, m.father, m.yichus, m.phone, m.email, m.address, m.notes, memberBalance(m.id)];
+    lines.push(row.map(function(c) {
+      var s = String(c == null ? '' : c);
+      return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }).join(','));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'מתפללים-' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+}
+
+// ---------- סנכרון מתפללים ----------
+function _mFetch(qs) {
+  var webhook = STATE.settings.webhook;
+  if (!webhook) return;
+  try { fetch(webhook + qs, { mode: 'no-cors' }); } catch (e) {}
+}
+
+function syncSaveMember(m)   { _mFetch('?action=saveMember&entry=' + encodeURIComponent(JSON.stringify(m))); }
+function syncDeleteMember(id){ _mFetch('?action=deleteMember&id=' + encodeURIComponent(id)); }
+function syncSaveLedger(t)   { _mFetch('?action=saveLedger&entry=' + encodeURIComponent(JSON.stringify(t))); }
+function syncDeleteLedger(id){ _mFetch('?action=deleteLedger&id=' + encodeURIComponent(id)); }
+
+function syncSaveLedgerBatch(list) {
+  list.forEach(function(t, i) { setTimeout(function() { syncSaveLedger(t); }, i * 200); });
+}
+
+function pushAllMembers(silent) {
+  var mem = STATE.members || [], led = STATE.ledger || [];
+  mem.forEach(function(m, i) { setTimeout(function() { syncSaveMember(m); }, i * 200); });
+  led.forEach(function(t, i) { setTimeout(function() { syncSaveLedger(t); }, (mem.length + i) * 200); });
+  if (!silent) showAlert('members', '⏳ מעלה ' + (mem.length + led.length) + ' רשומות לשרת…', 'success');
+}
+
+var _memSyncInProgress = false;
+
+function loadMembersSync() {
+  var webhook = STATE.settings.webhook;
+  if (!webhook || _memSyncInProgress) return;
+  _memSyncInProgress = true;
+
+  window._memCallback = function(res) {
+    _memSyncInProgress = false;
+    if (!res || !res.ok || !res.data) return;
+    var rm = res.data.members || [], rl = res.data.ledger || [];
+
+    if (!rm.length && (STATE.members || []).length) { pushAllMembers(true); return; }
+
+    var localM = STATE.members || [];
+    var remoteIds = {};
+    rm.forEach(function(m) { remoteIds[m.id] = true; });
+    var localOnlyM = localM.filter(function(m) { return !remoteIds[m.id]; });
+    STATE.members = rm.concat(localOnlyM);
+
+    var localL = STATE.ledger || [];
+    var remoteTids = {};
+    rl.forEach(function(t) { remoteTids[t.id] = true; });
+    var localOnlyL = localL.filter(function(t) { return !remoteTids[t.id]; });
+    STATE.ledger = rl.concat(localOnlyL);
+
+    saveMembersLocal(); saveLedgerLocal();
+    localOnlyM.forEach(function(m, i) { setTimeout(function() { syncSaveMember(m); }, i * 200); });
+    localOnlyL.forEach(function(t, i) { setTimeout(function() { syncSaveLedger(t); }, i * 200); });
+
+    var panel = document.getElementById('tab-members');
+    if (panel && panel.classList.contains('active')) renderMembers();
+  };
+
+  var s = document.createElement('script');
+  s.src = webhook + '?action=getMembers&callback=_memCallback';
+  s.onerror = function() { _memSyncInProgress = false; };
+  document.body.appendChild(s);
+}
+
 // ===== SYNC =====
 var _syncInProgress = false;
 
@@ -2063,6 +2689,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // סנכרון עם Google Sheets
   setTimeout(loadSyncData, 1000);
+
+  // מתפללים — זריעת רשימה ראשונית וסנכרון
+  seedMembersIfNeeded();
+  setTimeout(loadMembersSync, 1800);
 
   // load settings into form
   const s = STATE.settings;
