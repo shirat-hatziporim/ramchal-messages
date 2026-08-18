@@ -281,6 +281,10 @@ function doGet(e) {
   output.setMimeType(ContentService.MimeType.JSON);
 
   try {
+    // ניתוב פעולות מתפללים/חובות (getMembers, saveMember, deleteMember, saveLedger, deleteLedger)
+    var _membersRes = handleMembersAction(e, output);
+    if (_membersRes) return _membersRes;
+
     if (action === 'getData') {
       var data = syncGetData();
       var json = JSON.stringify({ ok: true, data: data });
@@ -599,4 +603,180 @@ function syncSaveTemplates(templates) {
   for (var i = 0; i < templates.length; i++) {
     sheet.appendRow([templates[i].name, templates[i].subj || '', templates[i].msg]);
   }
+}
+
+// ============================================================
+// ==================== מתפללים וחובות ========================
+// ============================================================
+// נוסף 18.8.2026 — גיליונות 'members' ו-'ledger' בתוך RamchalSync.
+// כל הפעולות נגישות דרך doGet (ראו handleMembersAction).
+
+function getMembersSheets() {
+  var ss = getOrCreateSyncSheet();
+
+  var mem = ss.getSheetByName('members');
+  if (!mem) {
+    mem = ss.insertSheet('members');
+    mem.appendRow(['id','last','first','father','yichus','phone','email','address','notes','active']);
+    mem.getRange('A:A').setNumberFormat('@');
+    mem.getRange('F:F').setNumberFormat('@');
+  }
+
+  var led = ss.getSheetByName('ledger');
+  if (!led) {
+    led = ss.insertSheet('ledger');
+    led.appendRow(['id','memberId','date','type','amount','desc']);
+    led.getRange('A:B').setNumberFormat('@');
+    led.getRange('C:C').setNumberFormat('@');
+  }
+
+  return { members: mem, ledger: led };
+}
+
+// תאריך מהגיליון → "YYYY-MM-DD" (Sheets עלול להמיר מחרוזת ל-Date)
+function normalizeSheetDate(v) {
+  if (!v) return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    return Utilities.formatDate(v, "Asia/Jerusalem", "yyyy-MM-dd");
+  }
+  return String(v);
+}
+
+function membersGetAll() {
+  var sh = getMembersSheets();
+
+  var md = sh.members.getDataRange().getValues();
+  var members = [];
+  for (var i = 1; i < md.length; i++) {
+    if (!md[i][0]) continue;
+    members.push({
+      id: String(md[i][0]), last: String(md[i][1] || ''), first: String(md[i][2] || ''),
+      father: String(md[i][3] || ''), yichus: String(md[i][4] || ''), phone: String(md[i][5] || ''),
+      email: String(md[i][6] || ''), address: String(md[i][7] || ''), notes: String(md[i][8] || ''),
+      active: md[i][9] === false ? false : true
+    });
+  }
+
+  var ld = sh.ledger.getDataRange().getValues();
+  var ledger = [];
+  for (var j = 1; j < ld.length; j++) {
+    if (!ld[j][0]) continue;
+    ledger.push({
+      id: String(ld[j][0]), memberId: String(ld[j][1]),
+      date: normalizeSheetDate(ld[j][2]), type: String(ld[j][3] || 'charge'),
+      amount: Number(ld[j][4] || 0), desc: String(ld[j][5] || '')
+    });
+  }
+
+  return { members: members, ledger: ledger };
+}
+
+function membersUpsert(m) {
+  if (!m || !m.id) return;
+  var sh = getMembersSheets().members;
+  var row = [String(m.id), m.last || '', m.first || '', m.father || '', m.yichus || '',
+             String(m.phone || ''), m.email || '', m.address || '', m.notes || '',
+             m.active === false ? false : true];
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(m.id)) {
+      sh.getRange(i + 1, 1, 1, row.length).setValues([row]);
+      return;
+    }
+  }
+  sh.appendRow(row);
+}
+
+function membersDelete(id) {
+  if (!id) return;
+  var sh = getMembersSheets();
+
+  var data = sh.members.getDataRange().getValues();
+  for (var i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]) === String(id)) sh.members.deleteRow(i + 1);
+  }
+
+  var ld = sh.ledger.getDataRange().getValues();
+  for (var j = ld.length - 1; j >= 1; j--) {
+    if (String(ld[j][1]) === String(id)) sh.ledger.deleteRow(j + 1);
+  }
+}
+
+function ledgerUpsert(t) {
+  if (!t || !t.id) return;
+  var sh = getMembersSheets().ledger;
+  var row = [String(t.id), String(t.memberId || ''), String(t.date || ''),
+             String(t.type || 'charge'), Number(t.amount || 0), t.desc || ''];
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(t.id)) {
+      sh.getRange(i + 1, 1, 1, row.length).setValues([row]);
+      return;
+    }
+  }
+  sh.appendRow(row);
+}
+
+function ledgerDelete(id) {
+  if (!id) return;
+  var sh = getMembersSheets().ledger;
+  var data = sh.getDataRange().getValues();
+  for (var i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]) === String(id)) sh.ledger.deleteRow(i + 1);
+  }
+}
+
+// יתרת חוב של מתפלל (חיובים פחות תשלומים)
+function memberBalanceGs(id) {
+  var all = membersGetAll();
+  var bal = 0;
+  all.ledger.forEach(function(t) {
+    if (String(t.memberId) !== String(id)) return;
+    bal += (t.type === 'payment' ? -Number(t.amount || 0) : Number(t.amount || 0));
+  });
+  return bal;
+}
+
+// ראוטר — מוחזר מ-doGet. מחזיר null אם ה-action אינו של מתפללים.
+// ⚠ אין decodeURIComponent — Apps Script כבר מפענח את ה-query.
+function handleMembersAction(e, output) {
+  var action = e.parameter.action || '';
+
+  if (action === 'getMembers') {
+    var json = JSON.stringify({ ok: true, data: membersGetAll() });
+    var cb = e.parameter.callback;
+    if (cb) {
+      output.setMimeType(ContentService.MimeType.JAVASCRIPT);
+      output.setContent(cb + '(' + json + ')');
+    } else {
+      output.setContent(json);
+    }
+    return output;
+  }
+
+  if (action === 'saveMember') {
+    membersUpsert(JSON.parse(e.parameter.entry || '{}'));
+    output.setContent(JSON.stringify({ ok: true }));
+    return output;
+  }
+
+  if (action === 'deleteMember') {
+    membersDelete(e.parameter.id || '');
+    output.setContent(JSON.stringify({ ok: true }));
+    return output;
+  }
+
+  if (action === 'saveLedger') {
+    ledgerUpsert(JSON.parse(e.parameter.entry || '{}'));
+    output.setContent(JSON.stringify({ ok: true }));
+    return output;
+  }
+
+  if (action === 'deleteLedger') {
+    ledgerDelete(e.parameter.id || '');
+    output.setContent(JSON.stringify({ ok: true }));
+    return output;
+  }
+
+  return null;
 }
