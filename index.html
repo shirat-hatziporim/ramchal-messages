@@ -189,6 +189,22 @@
     .header-status { display: none; }
   }
 
+  .btn-reload {
+    background: transparent;
+    border: 1.5px solid rgba(240,208,128,0.5);
+    color: var(--gold-light);
+    border-radius: 8px;
+    padding: 7px 11px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    margin-left: 10px;
+  }
+  .btn-reload:hover { background: rgba(240,208,128,0.15); border-color: var(--gold-light); }
+
   /* ===== FORM ELEMENTS ===== */
   .form-group {
     margin-bottom: 16px;
@@ -589,6 +605,7 @@
       </div>
     </div>
     <div id="sync-indicator" style="font-size:11px;color:var(--gold-light);opacity:0;transition:opacity 0.5s;margin-left:12px;"></div>
+    <button class="btn-reload" onclick="hardReload()" title="טוען מחדש את הגרסה העדכנית מהשרת. הנתונים שלך נשמרים.">↻ רענון עמוק</button>
     <div class="header-status">
       <div class="status-dot"></div>
       מערכת פעילה
@@ -1242,6 +1259,12 @@
             ניהול נתונים
           </div>
           <div style="display:flex;flex-direction:column;gap:10px;">
+            <button class="btn btn-outline btn-full" onclick="hardReload()">
+              ↻ רענון עמוק — טעינת גרסה עדכנית
+            </button>
+            <div style="font-size:11px;color:var(--gray-mid);text-align:center;margin:-4px 0 4px;">
+              גרסת המערכת: <span id="app-version">—</span>
+            </div>
             <button class="btn btn-outline btn-full" onclick="exportHistory()">
               ייצא היסטוריה (JSON)
             </button>
@@ -1401,6 +1424,24 @@ const STATE = {
     autoSend: true, holidayAlert: true, confirmSend: true
   }))
 };
+
+// ===== רענון עמוק =====
+var APP_VERSION = '2026-08-18.5';
+
+// עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
+// ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
+function hardReload() {
+  try {
+    if (window.caches && caches.keys) {
+      caches.keys().then(function(keys) {
+        keys.forEach(function(k) { caches.delete(k); });
+      });
+    }
+  } catch (e) {}
+  setTimeout(function() {
+    location.replace(location.origin + location.pathname + '?v=' + Date.now());
+  }, 150);
+}
 
 // ===== TABS =====
 function switchTab(tab) {
@@ -3085,6 +3126,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // סנכרון עם Google Sheets
   setTimeout(loadSyncData, 1000);
+
+  var verEl = document.getElementById('app-version');
+  if (verEl) verEl.textContent = APP_VERSION;
 
   // מתפללים — זריעת רשימה ראשונית וסנכרון
   seedMembersIfNeeded();
