@@ -115,6 +115,8 @@
     gap: 4px;
   }
 
+  .tab-btn { white-space: nowrap; }
+
   .tab-btn {
     padding: 10px 20px;
     background: none;
@@ -330,8 +332,19 @@
 
   @media (max-width: 700px) {
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
-    .nav-tabs-inner { gap: 0; }
-    .tab-btn { padding: 10px 12px; font-size: 13px; }
+    .nav-tabs-inner {
+      gap: 0;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 0 8px;
+    }
+    .tab-btn { padding: 9px 10px; font-size: 12.5px; }
+    .header-inner { padding: 10px 14px; }
+    .header-title h1 { font-size: 15px; }
+    .btn-reload { padding: 6px 9px; font-size: 12px; margin-left: 6px; }
+    .section-header h2 { font-size: 19px; }
+    .card { padding: 16px; }
+    .history-table th, .history-table td { padding: 9px 6px; font-size: 13px; }
   }
 
   .stat-card {
@@ -501,7 +514,11 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
   }
+
+  html, body { max-width: 100%; overflow-x: hidden; }
 
   .section-header h2 {
     font-size: 20px;
@@ -1094,7 +1111,7 @@
 
     <div class="card">
       <div class="members-toolbar">
-        <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--gray-mid);">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px;color:var(--gray-mid);">
           <span>מקומות בביהכ"נ:</span>
           <input type="number" id="hh-cap-men" min="0" placeholder="גברים" onchange="hhCapChange()" style="width:90px;padding:9px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;">
           <input type="number" id="hh-cap-women" min="0" placeholder="עזרת נשים" onchange="hhCapChange()" style="width:110px;padding:9px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;">
@@ -1426,7 +1443,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-08-18.5';
+var APP_VERSION = '2026-08-18.6';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
