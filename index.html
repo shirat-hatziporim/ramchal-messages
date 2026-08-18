@@ -600,6 +600,7 @@
       <button class="tab-btn" onclick="switchTab('shabbat')">זמני שבת</button>
       <button class="tab-btn" onclick="switchTab('custom')">הודעה חופשית</button>
       <button class="tab-btn" onclick="switchTab('members')">מתפללים</button>
+      <button class="tab-btn" onclick="switchTab('hh')">ימים נוראים</button>
       <button class="tab-btn" onclick="switchTab('history')">היסטוריה</button>
       <button class="tab-btn" onclick="switchTab('settings')">הגדרות</button>
     </div>
@@ -672,6 +673,9 @@
           </button>
           <button class="btn btn-outline btn-full" onclick="switchTab('members')">
             👥 ניהול מתפללים
+          </button>
+          <button class="btn btn-outline btn-full" onclick="switchTab('hh')">
+            🍎 רישום לימים נוראים
           </button>
           <button class="btn btn-outline btn-full" onclick="switchTab('history')">
             📋 צפה בהיסטוריה
@@ -1031,6 +1035,80 @@
     </div>
   </div>
 
+  <!-- ===== HIGH HOLIDAYS ===== -->
+  <div id="tab-hh" class="tab-panel">
+    <div class="section-header">
+      <div>
+        <h2>ימים נוראים</h2>
+        <p>רישום מקומות לראש השנה וליום כיפור</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <select id="hh-year" onchange="hhYearChange(this.value)" style="padding:9px 12px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;font-size:14px;background:var(--white);">
+          <option>תשפ"ו</option>
+          <option>תשפ"ז</option>
+          <option>תשפ"ח</option>
+          <option>תשפ"ט</option>
+          <option>תש"צ</option>
+        </select>
+        <button class="btn btn-primary" onclick="openHHModal(null)">+ רישום חדש</button>
+      </div>
+    </div>
+
+    <div id="hh-alert" class="alert"></div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number" id="hhstat-rh-men">0</div>
+        <div class="stat-label">ראש השנה — גברים</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="hhstat-rh-women">0</div>
+        <div class="stat-label">ראש השנה — עזרת נשים</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="hhstat-yk-men">0</div>
+        <div class="stat-label">יום כיפור — גברים</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="hhstat-yk-women">0</div>
+        <div class="stat-label">יום כיפור — עזרת נשים</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="members-toolbar">
+        <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--gray-mid);">
+          <span>מקומות בביהכ"נ:</span>
+          <input type="number" id="hh-cap-men" min="0" placeholder="גברים" onchange="hhCapChange()" style="width:90px;padding:9px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;">
+          <input type="number" id="hh-cap-women" min="0" placeholder="עזרת נשים" onchange="hhCapChange()" style="width:110px;padding:9px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;">
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="exportHHCSV()">ייצוא CSV</button>
+      </div>
+
+      <div id="hh-remaining" style="font-size:13px;color:var(--navy);font-weight:600;margin-bottom:14px;"></div>
+
+      <div style="overflow-x:auto;">
+        <div id="hh-empty" style="text-align:center;padding:40px;color:var(--gray-mid);display:none;">
+          <div style="font-size:48px;margin-bottom:12px;">🍎</div>
+          <div>אין רישומים לשנה זו</div>
+        </div>
+        <table class="history-table" id="hh-table">
+          <thead>
+            <tr>
+              <th style="width:36px;">#</th>
+              <th>שם</th>
+              <th>ראש השנה</th>
+              <th>יום כיפור</th>
+              <th style="width:110px;text-align:center;">דמי רישום</th>
+              <th style="width:170px;">פעולות</th>
+            </tr>
+          </thead>
+          <tbody id="hh-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== SETTINGS ===== -->
   <div id="tab-settings" class="tab-panel">
     <div class="section-header">
@@ -1190,6 +1268,45 @@
   </div>
 </div>
 
+<!-- High Holidays Modal -->
+<div id="hh-modal" class="modal-overlay-2">
+  <div class="modal-box">
+    <h3 id="hh-modal-title">רישום חדש</h3>
+
+    <div class="form-group">
+      <label>מתפלל</label>
+      <select id="hf-member" onchange="hhToggleGuestName()"></select>
+    </div>
+    <div class="form-group" id="hf-name-wrap">
+      <label>שם (אורח שאינו ברשימה)</label>
+      <input type="text" id="hf-name" placeholder="שם מלא">
+    </div>
+
+    <div style="font-size:13px;font-weight:700;color:var(--navy);margin:16px 0 8px;">ראש השנה</div>
+    <div class="grid-2" style="gap:0 14px;">
+      <div class="form-group"><label>מקומות גברים</label><input type="number" id="hf-rh-men" min="0" step="1" style="direction:ltr;"></div>
+      <div class="form-group"><label>מקומות עזרת נשים</label><input type="number" id="hf-rh-women" min="0" step="1" style="direction:ltr;"></div>
+    </div>
+
+    <div style="font-size:13px;font-weight:700;color:var(--navy);margin:6px 0 8px;">יום כיפור</div>
+    <div class="grid-2" style="gap:0 14px;">
+      <div class="form-group"><label>מקומות גברים</label><input type="number" id="hf-yk-men" min="0" step="1" style="direction:ltr;"></div>
+      <div class="form-group"><label>מקומות עזרת נשים</label><input type="number" id="hf-yk-women" min="0" step="1" style="direction:ltr;"></div>
+    </div>
+
+    <div class="form-group"><label>דמי רישום (₪)</label><input type="number" id="hf-fee" min="0" step="1" style="direction:ltr;"></div>
+    <div class="form-group"><label>הערות</label><input type="text" id="hf-notes" placeholder="מקום קבוע, בקשה מיוחדת…"></div>
+
+    <div style="display:flex;gap:10px;justify-content:space-between;margin-top:6px;">
+      <button class="btn btn-danger btn-sm" id="hf-delete" onclick="deleteHHForm()">מחק</button>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-outline" onclick="closeHHModal()">ביטול</button>
+        <button class="btn btn-primary" onclick="saveHHForm()">שמור</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Member Modal -->
 <div id="member-modal" class="modal-overlay-2">
   <div class="modal-box">
@@ -1273,6 +1390,7 @@ const STATE = {
   history: JSON.parse(localStorage.getItem('msg_history') || '[]'),
   members: JSON.parse(localStorage.getItem('shul_members') || '[]'),
   ledger: JSON.parse(localStorage.getItem('shul_ledger') || '[]'),
+  hh: JSON.parse(localStorage.getItem('shul_hh') || '[]'),
   settings: JSON.parse(localStorage.getItem('msg_settings') || JSON.stringify({
     shul: 'בית כנסת הרמח"ל מיצד',
     email: 'metzad-chevra@googlegroups.com',
@@ -1298,6 +1416,7 @@ function switchTab(tab) {
   });
   if (tab === 'history') renderHistory();
   if (tab === 'members') renderMembers();
+  if (tab === 'hh') renderHH();
   if (tab === 'dashboard') updateDashboard();
   if (tab === 'shabbat' && !STATE.zmanim) {
     // טען זמנים אוטומטית בכניסה ראשונה לטאב
@@ -2567,10 +2686,11 @@ function syncSaveLedgerBatch(list) {
 }
 
 function pushAllMembers(silent) {
-  var mem = STATE.members || [], led = STATE.ledger || [];
+  var mem = STATE.members || [], led = STATE.ledger || [], hh = STATE.hh || [];
   mem.forEach(function(m, i) { setTimeout(function() { syncSaveMember(m); }, i * 200); });
   led.forEach(function(t, i) { setTimeout(function() { syncSaveLedger(t); }, (mem.length + i) * 200); });
-  if (!silent) showAlert('members', '⏳ מעלה ' + (mem.length + led.length) + ' רשומות לשרת…', 'success');
+  hh.forEach(function(r, i) { setTimeout(function() { syncSaveHH(r); }, (mem.length + led.length + i) * 200); });
+  if (!silent) showAlert('members', '⏳ מעלה ' + (mem.length + led.length + hh.length) + ' רשומות לשרת…', 'success');
 }
 
 var _memSyncInProgress = false;
@@ -2599,12 +2719,22 @@ function loadMembersSync() {
     var localOnlyL = localL.filter(function(t) { return !remoteTids[t.id]; });
     STATE.ledger = rl.concat(localOnlyL);
 
-    saveMembersLocal(); saveLedgerLocal();
+    var rh = res.data.hh || [];
+    var localH = STATE.hh || [];
+    var remoteHids = {};
+    rh.forEach(function(r) { remoteHids[r.id] = true; });
+    var localOnlyH = localH.filter(function(r) { return !remoteHids[r.id]; });
+    STATE.hh = rh.concat(localOnlyH);
+
+    saveMembersLocal(); saveLedgerLocal(); hhSaveLocal();
     localOnlyM.forEach(function(m, i) { setTimeout(function() { syncSaveMember(m); }, i * 200); });
     localOnlyL.forEach(function(t, i) { setTimeout(function() { syncSaveLedger(t); }, i * 200); });
+    localOnlyH.forEach(function(r, i) { setTimeout(function() { syncSaveHH(r); }, i * 200); });
 
     var panel = document.getElementById('tab-members');
     if (panel && panel.classList.contains('active')) renderMembers();
+    var panelH = document.getElementById('tab-hh');
+    if (panelH && panelH.classList.contains('active')) renderHH();
   };
 
   var s = document.createElement('script');
@@ -2612,6 +2742,272 @@ function loadMembersSync() {
   s.onerror = function() { _memSyncInProgress = false; };
   document.body.appendChild(s);
 }
+
+// ===== רישום לימים נוראים =====
+var HH_YEARS = ['תשפ"ו', 'תשפ"ז', 'תשפ"ח', 'תשפ"ט', 'תש"צ'];
+var _editingHHId = null;
+
+function hhDefaultYear() {
+  // מראש השנה ואילך — השנה העברית הבאה. תשפ"ז מתחיל בספטמבר 2026.
+  var g = new Date();
+  var idx = (g.getFullYear() - 2026) + (g.getMonth() >= 7 ? 1 : 0);
+  return HH_YEARS[Math.max(0, Math.min(HH_YEARS.length - 1, idx))] || 'תשפ"ז';
+}
+
+function hhCurrentYear() {
+  return localStorage.getItem('hh_year') || hhDefaultYear();
+}
+
+function hhCapacity() {
+  try { return JSON.parse(localStorage.getItem('hh_capacity') || '{}') || {}; }
+  catch (e) { return {}; }
+}
+
+function hhSaveLocal() { localStorage.setItem('shul_hh', JSON.stringify(STATE.hh || [])); }
+
+function hhRegName(r) {
+  if (r.memberId) {
+    var m = memberById(r.memberId);
+    if (m) return memberFullName(m);
+  }
+  return r.name || '(ללא שם)';
+}
+
+function hhTotalSeats(r) {
+  return Number(r.rhMen || 0) + Number(r.rhWomen || 0) + Number(r.ykMen || 0) + Number(r.ykWomen || 0);
+}
+
+function renderHH() {
+  var year = hhCurrentYear();
+  var sel = document.getElementById('hh-year');
+  if (sel && sel.value !== year) sel.value = year;
+
+  var cap = hhCapacity();
+  var capM = document.getElementById('hh-cap-men');
+  var capW = document.getElementById('hh-cap-women');
+  if (capM && capM.value === '') capM.value = cap.men || '';
+  if (capW && capW.value === '') capW.value = cap.women || '';
+
+  var list = (STATE.hh || []).filter(function(r) { return r.year === year; });
+
+  var t = { rhMen: 0, rhWomen: 0, ykMen: 0, ykWomen: 0, fee: 0 };
+  list.forEach(function(r) {
+    t.rhMen += Number(r.rhMen || 0); t.rhWomen += Number(r.rhWomen || 0);
+    t.ykMen += Number(r.ykMen || 0); t.ykWomen += Number(r.ykWomen || 0);
+    t.fee += Number(r.fee || 0);
+  });
+
+  var setTxt = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+  setTxt('hhstat-rh-men', t.rhMen);
+  setTxt('hhstat-rh-women', t.rhWomen);
+  setTxt('hhstat-yk-men', t.ykMen);
+  setTxt('hhstat-yk-women', t.ykWomen);
+
+  var maxMen = Math.max(t.rhMen, t.ykMen), maxWomen = Math.max(t.rhWomen, t.ykWomen);
+  var remEl = document.getElementById('hh-remaining');
+  if (remEl) {
+    var parts = [];
+    parts.push(list.length + ' נרשמים · ' + fmtMoney(t.fee) + ' דמי רישום');
+    if (cap.men)   parts.push('גברים: ' + maxMen + '/' + cap.men + ' (נותרו ' + Math.max(0, cap.men - maxMen) + ')');
+    if (cap.women) parts.push('עזרת נשים: ' + maxWomen + '/' + cap.women + ' (נותרו ' + Math.max(0, cap.women - maxWomen) + ')');
+    remEl.textContent = parts.join('  |  ');
+  }
+
+  list.sort(function(a, b) { return hhRegName(a).localeCompare(hhRegName(b), 'he'); });
+
+  var body = document.getElementById('hh-body');
+  var empty = document.getElementById('hh-empty');
+  var table = document.getElementById('hh-table');
+  if (!body) return;
+
+  if (!list.length) {
+    body.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    if (table) table.style.display = 'none';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (table) table.style.display = '';
+
+  var cell = function(men, women) {
+    if (!men && !women) return '<span style="color:var(--gray-mid);">—</span>';
+    var s = [];
+    if (men) s.push('גברים ' + men);
+    if (women) s.push('עזרת נשים ' + women);
+    return s.join(' · ');
+  };
+
+  body.innerHTML = list.map(function(r, i) {
+    var guest = !r.memberId;
+    return '<tr>'
+      + '<td style="color:var(--gray-mid);font-size:12px;">' + (i + 1) + '</td>'
+      + '<td><div style="font-weight:600;">' + escHtml(hhRegName(r))
+      + (guest ? ' <span class="badge badge-gray">אורח</span>' : '') + '</div>'
+      + (r.notes ? '<div style="font-size:11px;color:var(--gray-mid);">' + escHtml(r.notes) + '</div>' : '')
+      + '</td>'
+      + '<td style="font-size:13px;">' + cell(Number(r.rhMen || 0), Number(r.rhWomen || 0)) + '</td>'
+      + '<td style="font-size:13px;">' + cell(Number(r.ykMen || 0), Number(r.ykWomen || 0)) + '</td>'
+      + '<td style="direction:ltr;text-align:center;white-space:nowrap;font-size:13px;">'
+      + (Number(r.fee || 0) ? fmtMoney(r.fee) + (r.chargeId ? ' <span class="badge badge-success">חויב</span>' : '') : '—')
+      + '</td>'
+      + '<td><div class="member-row-actions">'
+      + '<button class="btn btn-outline btn-sm" onclick="openHHModal(\'' + r.id + '\')">עריכה</button>'
+      + (Number(r.fee || 0) && !r.chargeId && r.memberId
+          ? '<button class="btn btn-gold btn-sm" onclick="chargeHHFee(\'' + r.id + '\')">חייב בכרטיס</button>' : '')
+      + '</div></td>'
+      + '</tr>';
+  }).join('');
+}
+
+function hhYearChange(v) {
+  localStorage.setItem('hh_year', v);
+  renderHH();
+}
+
+function hhCapChange() {
+  var m = Number((document.getElementById('hh-cap-men') || {}).value || 0);
+  var w = Number((document.getElementById('hh-cap-women') || {}).value || 0);
+  localStorage.setItem('hh_capacity', JSON.stringify({ men: m, women: w }));
+  renderHH();
+}
+
+// ---------- טופס רישום ----------
+function openHHModal(id) {
+  _editingHHId = id || null;
+  var r = id ? (STATE.hh || []).filter(function(x) { return x.id === id; })[0] : null;
+
+  var sel = document.getElementById('hf-member');
+  if (sel) {
+    var opts = ['<option value="">— אורח / לא ברשימה —</option>'];
+    (STATE.members || []).slice().sort(function(a, b) {
+      return (a.last || '').localeCompare(b.last || '', 'he');
+    }).forEach(function(m) {
+      opts.push('<option value="' + m.id + '">' + escHtml(memberFullName(m)) + '</option>');
+    });
+    sel.innerHTML = opts.join('');
+    sel.value = r ? (r.memberId || '') : '';
+  }
+
+  var set = function(f, v) { var el = document.getElementById('hf-' + f); if (el) el.value = (v === 0 || v) ? v : ''; };
+  set('name', r && r.name);
+  set('rh-men', r ? r.rhMen : ''); set('rh-women', r ? r.rhWomen : '');
+  set('yk-men', r ? r.ykMen : ''); set('yk-women', r ? r.ykWomen : '');
+  set('fee', r ? r.fee : ''); set('notes', r && r.notes);
+
+  document.getElementById('hh-modal-title').textContent =
+    (r ? 'עריכת רישום' : 'רישום חדש') + ' — ' + hhCurrentYear();
+  var del = document.getElementById('hf-delete');
+  if (del) del.style.display = r ? '' : 'none';
+  hhToggleGuestName();
+  document.getElementById('hh-modal').style.display = 'flex';
+}
+
+function hhToggleGuestName() {
+  var sel = document.getElementById('hf-member');
+  var wrap = document.getElementById('hf-name-wrap');
+  if (sel && wrap) wrap.style.display = sel.value ? 'none' : '';
+}
+
+function closeHHModal() {
+  document.getElementById('hh-modal').style.display = 'none';
+  _editingHHId = null;
+}
+
+function saveHHForm() {
+  var num = function(f) { var el = document.getElementById('hf-' + f); return Math.max(0, Number((el && el.value) || 0)); };
+  var memberId = (document.getElementById('hf-member') || {}).value || '';
+  var name = ((document.getElementById('hf-name') || {}).value || '').trim();
+
+  if (!memberId && !name) { alert('יש לבחור מתפלל או להזין שם'); return; }
+
+  var rhMen = num('rh-men'), rhWomen = num('rh-women'), ykMen = num('yk-men'), ykWomen = num('yk-women');
+  if (!rhMen && !rhWomen && !ykMen && !ykWomen) { alert('יש להזין לפחות מקום אחד'); return; }
+
+  var r = _editingHHId ? (STATE.hh || []).filter(function(x) { return x.id === _editingHHId; })[0] : null;
+  if (!r) {
+    r = { id: 'h' + Date.now(), year: hhCurrentYear(), chargeId: '' };
+    STATE.hh = STATE.hh || [];
+    STATE.hh.push(r);
+  }
+  r.memberId = memberId;
+  r.name = memberId ? '' : name;
+  r.rhMen = rhMen; r.rhWomen = rhWomen; r.ykMen = ykMen; r.ykWomen = ykWomen;
+  r.fee = num('fee');
+  r.notes = ((document.getElementById('hf-notes') || {}).value || '').trim();
+
+  hhSaveLocal();
+  syncSaveHH(r);
+  closeHHModal();
+  renderHH();
+  showAlert('hh', '✅ הרישום נשמר', 'success');
+}
+
+function deleteHHForm() {
+  if (!_editingHHId) return;
+  if (!confirm('למחוק את הרישום?')) return;
+  var id = _editingHHId;
+  STATE.hh = (STATE.hh || []).filter(function(x) { return x.id !== id; });
+  hhSaveLocal();
+  syncDeleteHH(id);
+  closeHHModal();
+  renderHH();
+  showAlert('hh', '🗑️ הרישום נמחק', 'success');
+}
+
+// ---------- חיוב דמי הרישום בכרטיס המתפלל ----------
+function chargeHHFee(id) {
+  var r = (STATE.hh || []).filter(function(x) { return x.id === id; })[0];
+  if (!r || !r.memberId || !Number(r.fee || 0)) return;
+  var m = memberById(r.memberId);
+  if (!m) { alert('המתפלל לא נמצא ברשימה'); return; }
+  if (!confirm('לחייב את ' + memberFullName(m) + ' ב-' + fmtMoney(r.fee) + '?')) return;
+
+  var entry = {
+    id: 't' + Date.now(),
+    memberId: r.memberId,
+    date: new Date().toISOString().split('T')[0],
+    type: 'charge',
+    amount: Number(r.fee),
+    desc: 'מקומות ימים נוראים ' + r.year
+  };
+  STATE.ledger = STATE.ledger || [];
+  STATE.ledger.push(entry);
+  saveLedgerLocal();
+  syncSaveLedger(entry);
+
+  r.chargeId = entry.id;
+  hhSaveLocal();
+  syncSaveHH(r);
+  renderHH();
+  showAlert('hh', '✅ החיוב נרשם בכרטיס', 'success');
+}
+
+// ---------- ייצוא ----------
+function exportHHCSV() {
+  var year = hhCurrentYear();
+  var head = ['שם', 'ר"ה גברים', 'ר"ה עזרת נשים', 'יו"כ גברים', 'יו"כ עזרת נשים', 'דמי רישום', 'חויב', 'הערות'];
+  var lines = [head.join(',')];
+  (STATE.hh || []).filter(function(r) { return r.year === year; })
+    .sort(function(a, b) { return hhRegName(a).localeCompare(hhRegName(b), 'he'); })
+    .forEach(function(r) {
+      var row = [hhRegName(r), r.rhMen || 0, r.rhWomen || 0, r.ykMen || 0, r.ykWomen || 0,
+                 r.fee || 0, r.chargeId ? 'כן' : 'לא', r.notes || ''];
+      lines.push(row.map(function(c) {
+        var s = String(c == null ? '' : c);
+        return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+      }).join(','));
+    });
+  var blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ימים-נוראים-' + year.replace(/"/g, '') + '.csv';
+  a.click();
+}
+
+// ---------- סנכרון ----------
+function syncSaveHH(r)    { _mFetch('?action=saveHH&entry=' + encodeURIComponent(JSON.stringify(r))); }
+function syncDeleteHH(id) { _mFetch('?action=deleteHH&id=' + encodeURIComponent(id)); }
+
 
 // ===== SYNC =====
 var _syncInProgress = false;
