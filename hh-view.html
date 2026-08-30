@@ -69,6 +69,7 @@
   .b-rh { background: #fef3c7; color: #92400e; }
   .b-yk { background: #dbeafe; color: #1e3a8a; }
   .b-guest { background: #f3f4f6; color: #374151; }
+  .b-paid { background: #d1fae5; color: #065f46; }
   .muted { color: var(--gray-mid); font-size: 12px; }
   .foot { text-align: center; font-size: 12px; color: var(--gray-mid); margin-top: 16px; }
   .empty { text-align: center; padding: 40px; color: var(--gray-mid); }
@@ -108,6 +109,7 @@
 
   <div class="card">
     <div class="summary" id="summary">טוען נתונים…</div>
+    <div class="summary" id="money" style="color:var(--gray-mid);font-weight:500;"></div>
     <div id="empty" class="empty" style="display:none;">
       <div style="font-size:44px;margin-bottom:10px;">🍎</div>
       <div>אין רישומים לשנה זו</div>
@@ -121,6 +123,9 @@
             <th style="width:96px;">חג</th>
             <th>מקומות</th>
             <th style="width:92px;">נרשם</th>
+            <th style="width:88px;text-align:center;">דמי רישום</th>
+            <th style="width:88px;text-align:center;">שולם</th>
+            <th style="width:88px;text-align:center;">יתרה</th>
           </tr>
         </thead>
         <tbody id="body"></tbody>
@@ -135,7 +140,7 @@
 var WEBHOOK = 'https://script.google.com/macros/s/AKfycbwf0HAdQHgkmxHSoUAkrhuiyz_GL0h2ZyXfr1C7gs9ii6phXFQikbw2o_GxDaWzo69acA/exec';
 var YEARS = ['תשפ"ו', 'תשפ"ז', 'תשפ"ח', 'תשפ"ט', 'תש"צ'];
 
-var DATA = { members: [], hh: [] };
+var DATA = { members: [], hh: [], ledger: [] };
 var FILTER = 'all';
 var LOADED = null;
 var CAP = { men: 0, women: 0 };
@@ -183,6 +188,22 @@ function regDate(r) {
   return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
 }
 
+function money(n) {
+  n = Number(n || 0);
+  return '₪' + n.toLocaleString('he-IL');
+}
+
+// התשלום מזוהה לפי תג המזהה שמוטמע בפירוט התנועה (#<id>)
+function payEntry(r) {
+  var tag = '#' + r.id;
+  var l = DATA.ledger || [];
+  for (var i = 0; i < l.length; i++) {
+    if (l[i].type === 'payment' && String(l[i].desc || '').indexOf(tag) >= 0) return l[i];
+  }
+  return null;
+}
+function paidAmount(r) { var e = payEntry(r); return e ? Number(e.amount || 0) : 0; }
+
 function regName(r) {
   if (r.memberId) {
     for (var i = 0; i < DATA.members.length; i++) {
@@ -206,6 +227,7 @@ function load() {
     }
     DATA.members = res.data.members || [];
     DATA.hh = res.data.hh || [];
+    DATA.ledger = res.data.ledger || [];
     LOADED = new Date();
     render();
   };
@@ -244,6 +266,16 @@ function render() {
   if (CAP.women) parts.push('עזרת נשים: ' + maxWomen + '/' + CAP.women + ' (נותרו ' + Math.max(0, CAP.women - maxWomen) + ')');
   document.getElementById('summary').textContent = parts.join('  |  ');
 
+  var tFee = 0, tPaid = 0, nPaid = 0;
+  view.forEach(function(r) {
+    tFee += Number(r.fee || 0);
+    var a = paidAmount(r);
+    if (a) { tPaid += a; nPaid++; }
+  });
+  document.getElementById('money').textContent =
+    'דמי רישום: ' + money(tFee) + '  |  שולם: ' + money(tPaid) + ' (' + nPaid + ' מתוך ' + view.length + ')'
+    + '  |  יתרה לגבייה: ' + money(Math.max(0, tFee - tPaid));
+
   var tbl = document.getElementById('tbl');
   var empty = document.getElementById('empty');
   var body = document.getElementById('body');
@@ -257,6 +289,9 @@ function render() {
     tbl.style.display = '';
     body.innerHTML = view.map(function(r, i) {
       var h = holiday(r);
+      var fee = Number(r.fee || 0);
+      var pd = paidAmount(r);
+      var due = Math.max(0, fee - pd);
       var seats = [];
       if (men(r)) seats.push('גברים ' + men(r));
       if (women(r)) seats.push('עזרת נשים ' + women(r));
@@ -269,6 +304,12 @@ function render() {
         + '<td><span class="badge ' + (h === 'yk' ? 'b-yk' : 'b-rh') + '">' + hLabel(h) + '</span></td>'
         + '<td>' + (seats.length ? seats.join(' · ') : '—') + '</td>'
         + '<td class="muted">' + (regDate(r) || '—') + '</td>'
+        + '<td style="text-align:center;">' + (fee ? money(fee) : '—') + '</td>'
+        + '<td style="text-align:center;">'
+        + (pd ? '<span class="badge b-paid">✔ ' + money(pd) + '</span>' : '<span class="muted">—</span>')
+        + '</td>'
+        + '<td style="text-align:center;font-weight:600;' + (due > 0 ? 'color:#b91c1c;' : 'color:#065f46;') + '">'
+        + (fee ? (due > 0 ? money(due) : 'שולם') : '—') + '</td>'
         + '</tr>';
     }).join('');
   }
