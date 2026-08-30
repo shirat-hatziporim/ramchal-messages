@@ -1136,6 +1136,13 @@
         <span style="font-size:13px;color:var(--gray-mid);">עד</span>
         <input type="date" id="hh-to" onchange="hhDateChange()" style="padding:7px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;font-size:13px;">
         <button class="btn btn-outline btn-sm" onclick="hhClearDates()">נקה</button>
+        <span style="width:1px;height:24px;background:var(--gray-light);margin:0 4px;"></span>
+        <span style="font-size:13px;color:var(--gray-mid);">מיון:</span>
+        <select id="hh-sort" onchange="hhSortChange(this.value)" style="padding:7px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;font-size:13px;background:var(--white);">
+          <option value="name">לפי שם (א–ת)</option>
+          <option value="reg">סדר רישום — הראשון תחילה</option>
+          <option value="reg_desc">סדר רישום — האחרון תחילה</option>
+        </select>
       </div>
 
       <div style="overflow-x:auto;">
@@ -1466,7 +1473,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-08-30.2';
+var APP_VERSION = '2026-08-30.3';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2927,6 +2934,31 @@ function hhRegDateHe(r) {
   return p[2] + '/' + p[1] + '/' + p[0];
 }
 
+function hhRegTs(r) {
+  var m = String(r.id || '').match(/^h(\d{12,})/);
+  return m ? Number(m[1]) : 0;
+}
+
+function hhSort() {
+  var v = localStorage.getItem('hh_sort') || 'name';
+  return (v === 'reg' || v === 'reg_desc') ? v : 'name';
+}
+
+function hhSortChange(v) {
+  localStorage.setItem('hh_sort', v);
+  renderHH();
+}
+
+// משווה יחיד — משמש גם בטבלה וגם בייצוא ה-CSV
+function hhCompare(a, b) {
+  var byName = function() { return hhRegName(a).localeCompare(hhRegName(b), 'he'); };
+  var srt = hhSort();
+  if (srt === 'name') return byName();
+  var d = hhRegTs(a) - hhRegTs(b);
+  if (!d) return byName();
+  return (srt === 'reg_desc') ? -d : d;
+}
+
 function hhDateRange() {
   var o = {};
   try { o = JSON.parse(localStorage.getItem('hh_dates') || '{}') || {}; } catch (e) { o = {}; }
@@ -3020,6 +3052,9 @@ function renderHH() {
   if (rM && rM.value === '') rM.value = rates.member;
   if (rG && rG.value === '') rG.value = rates.guest;
 
+  var sSel = document.getElementById('hh-sort');
+  if (sSel && sSel.value !== hhSort()) sSel.value = hhSort();
+
   var rng = hhDateRange();
   var dF = document.getElementById('hh-from');
   var dT = document.getElementById('hh-to');
@@ -3065,7 +3100,7 @@ function renderHH() {
     remEl.textContent = parts.join('  |  ');
   }
 
-  view.sort(function(a, b) { return hhRegName(a).localeCompare(hhRegName(b), 'he'); });
+  view.sort(hhCompare);
 
   var body = document.getElementById('hh-body');
   var empty = document.getElementById('hh-empty');
@@ -3252,7 +3287,7 @@ function exportHHCSV() {
   (STATE.hh || []).filter(function(r) {
       return r.year === year && (flt === 'all' || hhHoliday(r) === flt) && hhInRange(r, rng);
     })
-    .sort(function(a, b) { return hhRegName(a).localeCompare(hhRegName(b), 'he'); })
+    .sort(hhCompare)
     .forEach(function(r) {
       var row = [hhRegName(r), hhHolidayLabel(hhHoliday(r)), hhMen(r), hhWomen(r),
                  hhRegDateHe(r), r.fee || 0, r.chargeId ? 'כן' : 'לא', r.notes || ''];
