@@ -1133,12 +1133,6 @@
         <button class="btn btn-outline btn-sm" id="hhf-rh" onclick="hhFilterChange('rh')">ראש השנה</button>
         <button class="btn btn-outline btn-sm" id="hhf-yk" onclick="hhFilterChange('yk')">יום כיפור</button>
         <span style="width:1px;height:24px;background:var(--gray-light);margin:0 4px;"></span>
-        <span style="font-size:13px;color:var(--gray-mid);">תאריך רישום:</span>
-        <input type="date" id="hh-from" onchange="hhDateChange()" style="padding:7px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;font-size:13px;">
-        <span style="font-size:13px;color:var(--gray-mid);">עד</span>
-        <input type="date" id="hh-to" onchange="hhDateChange()" style="padding:7px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;font-size:13px;">
-        <button class="btn btn-outline btn-sm" onclick="hhClearDates()">נקה</button>
-        <span style="width:1px;height:24px;background:var(--gray-light);margin:0 4px;"></span>
         <span style="font-size:13px;color:var(--gray-mid);">תשלום:</span>
         <select id="hh-paid-filter" onchange="hhPaidFilterChange(this.value)" style="padding:7px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;font-size:13px;background:var(--white);">
           <option value="all">הכל</option>
@@ -1483,7 +1477,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-08-30.6';
+var APP_VERSION = '2026-08-30.7';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2969,34 +2963,7 @@ function hhCompare(a, b) {
   return (srt === 'reg_desc') ? -d : d;
 }
 
-function hhDateRange() {
-  var o = {};
-  try { o = JSON.parse(localStorage.getItem('hh_dates') || '{}') || {}; } catch (e) { o = {}; }
-  return { from: o.from || '', to: o.to || '' };
-}
-
-function hhDateChange() {
-  var f = ((document.getElementById('hh-from') || {}).value) || '';
-  var t = ((document.getElementById('hh-to') || {}).value) || '';
-  localStorage.setItem('hh_dates', JSON.stringify({ from: f, to: t }));
-  renderHH();
-}
-
-function hhClearDates() {
-  localStorage.removeItem('hh_dates');
-  var f = document.getElementById('hh-from'); if (f) f.value = '';
-  var t = document.getElementById('hh-to');   if (t) t.value = '';
-  renderHH();
-}
-
-function hhInRange(r, rng) {
-  if (!rng.from && !rng.to) return true;
-  var d = hhRegDate(r);
-  if (!d) return false;
-  if (rng.from && d < rng.from) return false;
-  if (rng.to && d > rng.to) return false;
-  return true;
-}
+try { localStorage.removeItem('hh_dates'); } catch (e) {}
 
 function hhFilter() {
   var v = localStorage.getItem('hh_filter') || 'all';
@@ -3065,12 +3032,6 @@ function renderHH() {
   var sSel = document.getElementById('hh-sort');
   if (sSel && sSel.value !== hhSort()) sSel.value = hhSort();
 
-  var rng = hhDateRange();
-  var dF = document.getElementById('hh-from');
-  var dT = document.getElementById('hh-to');
-  if (dF && dF.value !== rng.from) dF.value = rng.from;
-  if (dT && dT.value !== rng.to) dT.value = rng.to;
-
   hhSplitMixed();
   var list = (STATE.hh || []).filter(function(r) { return r.year === year; });
 
@@ -3084,7 +3045,7 @@ function renderHH() {
   if (pSel && pSel.value !== pf) pSel.value = pf;
 
   var view = list.filter(function(r) {
-    return (flt === 'all' || hhHoliday(r) === flt) && hhInRange(r, rng)
+    return (flt === 'all' || hhHoliday(r) === flt)
       && (pf === 'all' || (pf === 'paid') === hhIsPaid(r));
   });
 
@@ -3108,7 +3069,6 @@ function renderHH() {
     var vFee = 0;
     view.forEach(function(r) { vFee += Number(r.fee || 0); });
     parts.push(view.length + ' נרשמים' + (flt === 'all' ? '' : ' ל' + hhHolidayLabel(flt))
-      + ((rng.from || rng.to) ? ' (מסונן לפי תאריך)' : '')
       + ' · ' + fmtMoney(vFee) + ' דמי רישום');
 
     var vPaid = 0, nPaid = 0;
@@ -3408,11 +3368,10 @@ function hhCopyViewLink() {
 function hhApplyFees() {
   var year = hhCurrentYear();
   var flt = hhFilter();
-  var rng = hhDateRange();
   var rates = hhRates();
 
   var list = (STATE.hh || []).filter(function(r) {
-    return r.year === year && (flt === 'all' || hhHoliday(r) === flt) && hhInRange(r, rng);
+    return r.year === year && (flt === 'all' || hhHoliday(r) === flt);
   });
 
   var upd = [], skipped = 0, total = 0;
@@ -3450,11 +3409,10 @@ function hhApplyFees() {
 function exportHHCSV() {
   var year = hhCurrentYear();
   var flt = hhFilter();
-  var rng = hhDateRange();
   var head = ['שם', 'חג', 'גברים', 'עזרת נשים', 'תאריך רישום', 'דמי רישום', 'חויב', 'שולם', 'סכום ששולם', 'תאריך תשלום', 'הערות'];
   var lines = [head.join(',')];
   (STATE.hh || []).filter(function(r) {
-      return r.year === year && (flt === 'all' || hhHoliday(r) === flt) && hhInRange(r, rng);
+      return r.year === year && (flt === 'all' || hhHoliday(r) === flt);
     })
     .sort(hhCompare)
     .forEach(function(r) {
