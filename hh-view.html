@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>רישום ימים נוראים | בית כנסת הרמח"ל מיצד</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #1a3a5c;
+    --gold: #c9a84c;
+    --white: #ffffff;
+    --gray-bg: #f4f1eb;
+    --gray-light: #e2ddd3;
+    --gray-mid: #8a8578;
+    --text: #2c2c2c;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { overflow-x: hidden; }
+  body {
+    font-family: 'Heebo', Arial, sans-serif;
+    background: var(--gray-bg); color: var(--text); direction: rtl;
+    min-height: 100vh; padding-bottom: 40px;
+  }
+  header {
+    background: var(--navy); color: var(--white);
+    padding: 18px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  }
+  .head-inner {
+    max-width: 900px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 19px; font-weight: 800; }
+  header p { font-size: 12px; opacity: .8; margin-top: 2px; }
+  .ro-badge {
+    background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.25);
+    padding: 6px 12px; border-radius: 999px; font-size: 12px; white-space: nowrap;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 20px 16px 0; }
+  .bar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;
+  }
+  select, button {
+    font-family: inherit; font-size: 14px; border-radius: 8px;
+    border: 1.5px solid var(--gray-light); background: var(--white); color: var(--text);
+    padding: 9px 12px; cursor: pointer;
+  }
+  button.on { background: var(--navy); color: var(--white); border-color: var(--navy); font-weight: 600; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stat {
+    background: var(--white); border-radius: 12px; padding: 16px 10px; text-align: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .stat .n { font-size: 26px; font-weight: 800; color: var(--navy); }
+  .stat .l { font-size: 11px; color: var(--gray-mid); margin-top: 4px; }
+  .card {
+    background: var(--white); border-radius: 14px; padding: 18px 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .summary { font-size: 13px; font-weight: 600; color: var(--navy); margin-bottom: 14px; line-height: 1.7; }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: right; font-size: 12px; color: var(--gray-mid); font-weight: 600;
+    padding: 8px 6px; border-bottom: 2px solid var(--gray-light); white-space: nowrap;
+  }
+  td { padding: 11px 6px; border-bottom: 1px solid var(--gray-light); font-size: 13px; }
+  .name { font-weight: 600; font-size: 14px; }
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .b-rh { background: #fef3c7; color: #92400e; }
+  .b-yk { background: #dbeafe; color: #1e3a8a; }
+  .b-guest { background: #f3f4f6; color: #374151; }
+  .muted { color: var(--gray-mid); font-size: 12px; }
+  .foot { text-align: center; font-size: 12px; color: var(--gray-mid); margin-top: 16px; }
+  .empty { text-align: center; padding: 40px; color: var(--gray-mid); }
+  @media (max-width: 620px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .stat .n { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-inner">
+    <div>
+      <h1>רישום לימים נוראים</h1>
+      <p>בית כנסת הרמח"ל מיצד</p>
+    </div>
+    <div class="ro-badge">👁 צפייה בלבד</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="bar">
+    <select id="year" onchange="render()"></select>
+    <button id="f-all" onclick="setF('all')">הכל</button>
+    <button id="f-rh" onclick="setF('rh')">ראש השנה</button>
+    <button id="f-yk" onclick="setF('yk')">יום כיפור</button>
+    <button onclick="load()" style="margin-inline-start:auto;">↻ רענון</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="n" id="s-rh-men">–</div><div class="l">ראש השנה — גברים</div></div>
+    <div class="stat"><div class="n" id="s-rh-women">–</div><div class="l">ראש השנה — עזרת נשים</div></div>
+    <div class="stat"><div class="n" id="s-yk-men">–</div><div class="l">יום כיפור — גברים</div></div>
+    <div class="stat"><div class="n" id="s-yk-women">–</div><div class="l">יום כיפור — עזרת נשים</div></div>
+  </div>
+
+  <div class="card">
+    <div class="summary" id="summary">טוען נתונים…</div>
+    <div id="empty" class="empty" style="display:none;">
+      <div style="font-size:44px;margin-bottom:10px;">🍎</div>
+      <div>אין רישומים לשנה זו</div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table id="tbl" style="display:none;">
+        <thead>
+          <tr>
+            <th style="width:32px;">#</th>
+            <th>שם</th>
+            <th style="width:96px;">חג</th>
+            <th>מקומות</th>
+            <th style="width:92px;">נרשם</th>
+          </tr>
+        </thead>
+        <tbody id="body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+var WEBHOOK = 'https://script.google.com/macros/s/AKfycbwf0HAdQHgkmxHSoUAkrhuiyz_GL0h2ZyXfr1C7gs9ii6phXFQikbw2o_GxDaWzo69acA/exec';
+var YEARS = ['תשפ"ו', 'תשפ"ז', 'תשפ"ח', 'תשפ"ט', 'תש"צ'];
+
+var DATA = { members: [], hh: [] };
+var FILTER = 'all';
+var LOADED = null;
+var CAP = { men: 0, women: 0 };
+
+// קיבולת אופציונלית מה-URL: ?men=60&women=40
+(function readParams() {
+  var q = location.search.replace(/^\?/, '').split('&');
+  var p = {};
+  q.forEach(function(kv) {
+    var i = kv.indexOf('=');
+    if (i > 0) p[decodeURIComponent(kv.slice(0, i))] = decodeURIComponent(kv.slice(i + 1));
+  });
+  CAP.men = Math.max(0, Number(p.men || 0));
+  CAP.women = Math.max(0, Number(p.women || 0));
+  if (p.year && YEARS.indexOf(p.year) >= 0) PRESET_YEAR = p.year;
+})();
+var PRESET_YEAR;
+
+function defaultYear() {
+  var g = new Date();
+  var idx = (g.getFullYear() - 2026) + (g.getMonth() >= 7 ? 1 : 0);
+  return YEARS[Math.max(0, Math.min(YEARS.length - 1, idx))] || 'תשפ"ז';
+}
+
+function escHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function holiday(r) {
+  var rh = Number(r.rhMen || 0) + Number(r.rhWomen || 0);
+  var yk = Number(r.ykMen || 0) + Number(r.ykWomen || 0);
+  return (yk && !rh) ? 'yk' : 'rh';
+}
+function hLabel(h) { return h === 'yk' ? 'יום כיפור' : 'ראש השנה'; }
+function men(r)   { return Number(holiday(r) === 'yk' ? (r.ykMen || 0)   : (r.rhMen || 0)); }
+function women(r) { return Number(holiday(r) === 'yk' ? (r.ykWomen || 0) : (r.rhWomen || 0)); }
+
+function regDate(r) {
+  var m = String(r.id || '').match(/^h(\d{12,})/);
+  if (!m) return '';
+  var d = new Date(Number(m[1]));
+  if (isNaN(d.getTime())) return '';
+  var pad = function(x) { return (x < 10 ? '0' : '') + x; };
+  return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
+}
+
+function regName(r) {
+  if (r.memberId) {
+    for (var i = 0; i < DATA.members.length; i++) {
+      if (DATA.members[i].id === r.memberId) {
+        var m = DATA.members[i];
+        return ((m.last || '') + ' ' + (m.first || '')).trim();
+      }
+    }
+  }
+  return r.name || '(ללא שם)';
+}
+
+function setF(v) { FILTER = v; render(); }
+
+function load() {
+  document.getElementById('summary').textContent = 'טוען נתונים…';
+  window._hhViewCb = function(res) {
+    if (!res || !res.ok || !res.data) {
+      document.getElementById('summary').textContent = '⚠ שגיאה בטעינת הנתונים. נסו לרענן.';
+      return;
+    }
+    DATA.members = res.data.members || [];
+    DATA.hh = res.data.hh || [];
+    LOADED = new Date();
+    render();
+  };
+  var s = document.createElement('script');
+  s.src = WEBHOOK + '?action=getMembers&callback=_hhViewCb&t=' + Date.now();
+  s.onerror = function() {
+    document.getElementById('summary').textContent = '⚠ אין חיבור לשרת. נסו לרענן.';
+  };
+  document.body.appendChild(s);
+}
+
+function render() {
+  var year = document.getElementById('year').value;
+  ['all', 'rh', 'yk'].forEach(function(k) {
+    var b = document.getElementById('f-' + k);
+    if (b) b.className = (k === FILTER) ? 'on' : '';
+  });
+
+  var list = (DATA.hh || []).filter(function(r) { return r.year === year; });
+
+  var t = { rhMen: 0, rhWomen: 0, ykMen: 0, ykWomen: 0 };
+  list.forEach(function(r) {
+    t.rhMen += Number(r.rhMen || 0); t.rhWomen += Number(r.rhWomen || 0);
+    t.ykMen += Number(r.ykMen || 0); t.ykWomen += Number(r.ykWomen || 0);
+  });
+  var set = function(id, v) { document.getElementById(id).textContent = v; };
+  set('s-rh-men', t.rhMen); set('s-rh-women', t.rhWomen);
+  set('s-yk-men', t.ykMen); set('s-yk-women', t.ykWomen);
+
+  var view = list.filter(function(r) { return FILTER === 'all' || holiday(r) === FILTER; });
+  view.sort(function(a, b) { return regName(a).localeCompare(regName(b), 'he'); });
+
+  var maxMen = Math.max(t.rhMen, t.ykMen), maxWomen = Math.max(t.rhWomen, t.ykWomen);
+  var parts = [view.length + ' נרשמים' + (FILTER === 'all' ? '' : ' ל' + hLabel(FILTER))];
+  if (CAP.men) parts.push('גברים: ' + maxMen + '/' + CAP.men + ' (נותרו ' + Math.max(0, CAP.men - maxMen) + ')');
+  if (CAP.women) parts.push('עזרת נשים: ' + maxWomen + '/' + CAP.women + ' (נותרו ' + Math.max(0, CAP.women - maxWomen) + ')');
+  document.getElementById('summary').textContent = parts.join('  |  ');
+
+  var tbl = document.getElementById('tbl');
+  var empty = document.getElementById('empty');
+  var body = document.getElementById('body');
+
+  if (!view.length) {
+    body.innerHTML = '';
+    tbl.style.display = 'none';
+    empty.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    tbl.style.display = '';
+    body.innerHTML = view.map(function(r, i) {
+      var h = holiday(r);
+      var seats = [];
+      if (men(r)) seats.push('גברים ' + men(r));
+      if (women(r)) seats.push('עזרת נשים ' + women(r));
+      return '<tr>'
+        + '<td class="muted">' + (i + 1) + '</td>'
+        + '<td><span class="name">' + escHtml(regName(r)) + '</span>'
+        + (r.memberId ? '' : ' <span class="badge b-guest">אורח</span>')
+        + (r.notes ? '<div class="muted">' + escHtml(r.notes) + '</div>' : '')
+        + '</td>'
+        + '<td><span class="badge ' + (h === 'yk' ? 'b-yk' : 'b-rh') + '">' + hLabel(h) + '</span></td>'
+        + '<td>' + (seats.length ? seats.join(' · ') : '—') + '</td>'
+        + '<td class="muted">' + (regDate(r) || '—') + '</td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  var foot = document.getElementById('foot');
+  if (LOADED) {
+    var pad = function(x) { return (x < 10 ? '0' : '') + x; };
+    foot.textContent = 'עודכן ב-' + pad(LOADED.getHours()) + ':' + pad(LOADED.getMinutes())
+      + ' · הנתונים מתרעננים אוטומטית כל דקה';
+  }
+}
+
+(function init() {
+  var sel = document.getElementById('year');
+  sel.innerHTML = YEARS.map(function(y) { return '<option>' + y + '</option>'; }).join('');
+  sel.value = PRESET_YEAR || defaultYear();
+  load();
+  setInterval(load, 60000);
+})();
+</script>
+</body>
+</html>
