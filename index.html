@@ -1121,6 +1121,7 @@
           <input type="number" id="hh-rate-member" min="0" placeholder="מתפלל" onchange="hhRateChange()" style="width:95px;padding:9px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;">
           <input type="number" id="hh-rate-guest" min="0" placeholder="אורח" onchange="hhRateChange()" style="width:95px;padding:9px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;">
         </div>
+        <button class="btn btn-gold btn-sm" onclick="hhApplyFees()">חשב דמי רישום</button>
         <button class="btn btn-outline btn-sm" onclick="exportHHCSV()">ייצוא CSV</button>
       </div>
 
@@ -1473,7 +1474,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-08-30.3';
+var APP_VERSION = '2026-08-30.4';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -3275,6 +3276,48 @@ function chargeHHFee(id) {
   syncSaveHH(r);
   renderHH();
   showAlert('hh', '✅ החיוב נרשם בכרטיס', 'success');
+}
+
+// ---------- חישוב דמי רישום לרישומים קיימים ----------
+function hhApplyFees() {
+  var year = hhCurrentYear();
+  var flt = hhFilter();
+  var rng = hhDateRange();
+  var rates = hhRates();
+
+  var list = (STATE.hh || []).filter(function(r) {
+    return r.year === year && (flt === 'all' || hhHoliday(r) === flt) && hhInRange(r, rng);
+  });
+
+  var upd = [], skipped = 0, total = 0;
+  list.forEach(function(r) {
+    var seats = hhMen(r) + hhWomen(r);
+    var fee = seats * (r.memberId ? rates.member : rates.guest);
+    if (r.chargeId) { skipped++; return; }
+    if (Number(r.fee || 0) === fee) return;
+    upd.push({ rec: r, fee: fee });
+    total += fee;
+  });
+
+  if (!upd.length) {
+    showAlert('hh', skipped ? 'אין מה לעדכן — ' + skipped + ' רישומים כבר חויבו בכרטיס' : 'דמי הרישום כבר מעודכנים', 'success');
+    return;
+  }
+
+  var msg = 'לעדכן דמי רישום ל-' + upd.length + ' רישומים'
+    + (flt === 'all' ? '' : ' של ' + hhHolidayLabel(flt))
+    + '?\n\nמתפלל: ' + rates.member + ' ₪ למקום · אורח: ' + rates.guest + ' ₪ למקום'
+    + '\nסה"כ: ' + total + ' ₪'
+    + (skipped ? '\n\n(' + skipped + ' רישומים שכבר חויבו בכרטיס לא ישתנו)' : '');
+  if (!confirm(msg)) return;
+
+  upd.forEach(function(u) { u.rec.fee = u.fee; });
+  hhSaveLocal();
+  upd.forEach(function(u, k) {
+    setTimeout(function() { syncSaveHH(u.rec); }, k * 200);
+  });
+  renderHH();
+  showAlert('hh', '✅ עודכנו דמי רישום ל-' + upd.length + ' רישומים · סה"כ ' + fmtMoney(total), 'success');
 }
 
 // ---------- ייצוא ----------
