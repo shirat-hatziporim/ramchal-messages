@@ -1139,6 +1139,13 @@
         <input type="date" id="hh-to" onchange="hhDateChange()" style="padding:7px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;font-size:13px;">
         <button class="btn btn-outline btn-sm" onclick="hhClearDates()">נקה</button>
         <span style="width:1px;height:24px;background:var(--gray-light);margin:0 4px;"></span>
+        <span style="font-size:13px;color:var(--gray-mid);">תשלום:</span>
+        <select id="hh-paid-filter" onchange="hhPaidFilterChange(this.value)" style="padding:7px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;font-size:13px;background:var(--white);">
+          <option value="all">הכל</option>
+          <option value="paid">שולם</option>
+          <option value="unpaid">טרם שולם</option>
+        </select>
+        <span style="width:1px;height:24px;background:var(--gray-light);margin:0 4px;"></span>
         <span style="font-size:13px;color:var(--gray-mid);">מיון:</span>
         <select id="hh-sort" onchange="hhSortChange(this.value)" style="padding:7px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;font-size:13px;background:var(--white);">
           <option value="name">לפי שם (א–ת)</option>
@@ -1161,6 +1168,7 @@
               <th>מקומות</th>
               <th style="width:100px;">נרשם</th>
               <th style="width:110px;text-align:center;">דמי רישום</th>
+              <th style="width:110px;text-align:center;">שולם</th>
               <th style="width:170px;">פעולות</th>
             </tr>
           </thead>
@@ -1475,7 +1483,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-08-30.5';
+var APP_VERSION = '2026-08-30.6';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -3071,8 +3079,13 @@ function renderHH() {
     var b = document.getElementById('hhf-' + k);
     if (b) b.className = 'btn btn-sm ' + (k === flt ? 'btn-primary' : 'btn-outline');
   });
+  var pf = hhPaidFilter();
+  var pSel = document.getElementById('hh-paid-filter');
+  if (pSel && pSel.value !== pf) pSel.value = pf;
+
   var view = list.filter(function(r) {
-    return (flt === 'all' || hhHoliday(r) === flt) && hhInRange(r, rng);
+    return (flt === 'all' || hhHoliday(r) === flt) && hhInRange(r, rng)
+      && (pf === 'all' || (pf === 'paid') === hhIsPaid(r));
   });
 
   var t = { rhMen: 0, rhWomen: 0, ykMen: 0, ykWomen: 0, fee: 0 };
@@ -3097,6 +3110,14 @@ function renderHH() {
     parts.push(view.length + ' נרשמים' + (flt === 'all' ? '' : ' ל' + hhHolidayLabel(flt))
       + ((rng.from || rng.to) ? ' (מסונן לפי תאריך)' : '')
       + ' · ' + fmtMoney(vFee) + ' דמי רישום');
+
+    var vPaid = 0, nPaid = 0;
+    view.forEach(function(r) {
+      var a = hhPaidAmount(r);
+      if (a) { vPaid += a; nPaid++; }
+    });
+    parts.push('💰 שולם: ' + fmtMoney(vPaid) + ' (' + nPaid + ' מתוך ' + view.length + ')'
+      + ' · יתרה לגבייה: ' + fmtMoney(Math.max(0, vFee - vPaid)));
     if (cap.men)   parts.push('גברים: ' + maxMen + '/' + cap.men + ' (נותרו ' + Math.max(0, cap.men - maxMen) + ')');
     if (cap.women) parts.push('עזרת נשים: ' + maxWomen + '/' + cap.women + ' (נותרו ' + Math.max(0, cap.women - maxWomen) + ')');
     remEl.textContent = parts.join('  |  ');
@@ -3129,6 +3150,7 @@ function renderHH() {
   body.innerHTML = view.map(function(r, i) {
     var guest = !r.memberId;
     var h = hhHoliday(r);
+    var payE = hhPayEntry(r);
     return '<tr>'
       + '<td style="color:var(--gray-mid);font-size:12px;">' + (i + 1) + '</td>'
       + '<td><div style="font-weight:600;">' + escHtml(hhRegName(r))
@@ -3143,10 +3165,20 @@ function renderHH() {
       + '<td style="direction:ltr;text-align:center;white-space:nowrap;font-size:13px;">'
       + (Number(r.fee || 0) ? fmtMoney(r.fee) + (r.chargeId ? ' <span class="badge badge-success">חויב</span>' : '') : '—')
       + '</td>'
+      + '<td style="text-align:center;white-space:nowrap;">'
+      + (payE
+          ? '<span class="badge badge-success">✔ ' + fmtMoney(payE.amount) + '</span>'
+            + '<div style="font-size:10px;color:var(--gray-mid);margin-top:3px;">' + escHtml(payE.date || '') + '</div>'
+          : '<span style="color:var(--gray-mid);font-size:13px;">—</span>')
+      + '</td>'
       + '<td><div class="member-row-actions">'
       + '<button class="btn btn-outline btn-sm" onclick="openHHModal(\'' + r.id + '\')">עריכה</button>'
-      + (Number(r.fee || 0) && !r.chargeId && r.memberId
-          ? '<button class="btn btn-gold btn-sm" onclick="chargeHHFee(\'' + r.id + '\')">חייב בכרטיס</button>' : '')
+      + (payE
+          ? '<button class="btn btn-outline btn-sm" onclick="hhUnmarkPaid(\'' + r.id + '\')">בטל תשלום</button>'
+          : (Number(r.fee || 0)
+              ? '<button class="btn btn-gold btn-sm" onclick="hhMarkPaid(\'' + r.id + '\')">סמן כשולם</button>' : ''))
+      + (Number(r.fee || 0) && !r.chargeId && r.memberId && !payE
+          ? '<button class="btn btn-outline btn-sm" onclick="chargeHHFee(\'' + r.id + '\')">חייב בכרטיס</button>' : '')
       + '</div></td>'
       + '</tr>';
   }).join('');
@@ -3252,12 +3284,12 @@ function deleteHHForm() {
 }
 
 // ---------- חיוב דמי הרישום בכרטיס המתפלל ----------
-function chargeHHFee(id) {
+function chargeHHFee(id, silent) {
   var r = (STATE.hh || []).filter(function(x) { return x.id === id; })[0];
   if (!r || !r.memberId || !Number(r.fee || 0)) return;
   var m = memberById(r.memberId);
   if (!m) { alert('המתפלל לא נמצא ברשימה'); return; }
-  if (!confirm('לחייב את ' + memberFullName(m) + ' ב-' + fmtMoney(r.fee) + '?')) return;
+  if (!silent && !confirm('לחייב את ' + memberFullName(m) + ' ב-' + fmtMoney(r.fee) + '?')) return;
 
   var entry = {
     id: 't' + Date.now(),
@@ -3276,7 +3308,79 @@ function chargeHHFee(id) {
   hhSaveLocal();
   syncSaveHH(r);
   renderHH();
-  showAlert('hh', '✅ החיוב נרשם בכרטיס', 'success');
+  if (!silent) showAlert('hh', '✅ החיוב נרשם בכרטיס', 'success');
+}
+
+// ---------- סימון תשלום ----------
+// התשלום נרשם כתנועת 'payment' בכרטיס המתפלל, עם תג מזהה בפירוט (#<id>).
+// כך הוא נשמר בגיליון הקיים, מסתנכרן בין מכשירים, ומופיע גם בכרטיס החוב.
+function hhPayTag(r) { return '#' + r.id; }
+
+function hhPayEntry(r) {
+  var tag = hhPayTag(r);
+  var l = STATE.ledger || [];
+  for (var i = 0; i < l.length; i++) {
+    if (l[i].type === 'payment' && String(l[i].desc || '').indexOf(tag) >= 0) return l[i];
+  }
+  return null;
+}
+
+function hhIsPaid(r) { return !!hhPayEntry(r); }
+function hhPaidAmount(r) { var e = hhPayEntry(r); return e ? Number(e.amount || 0) : 0; }
+
+function hhPaidFilter() {
+  var v = localStorage.getItem('hh_paid') || 'all';
+  return (v === 'paid' || v === 'unpaid') ? v : 'all';
+}
+function hhPaidFilterChange(v) { localStorage.setItem('hh_paid', v); renderHH(); }
+
+function hhMarkPaid(id) {
+  var r = (STATE.hh || []).filter(function(x) { return x.id === id; })[0];
+  if (!r || hhIsPaid(r)) return;
+  var fee = Number(r.fee || 0);
+  if (!fee) { alert('אין דמי רישום לרישום זה — חשבו אותם או הזינו סכום בעריכה'); return; }
+
+  var amt = prompt('סכום ששולם עבור ' + hhRegName(r) + ' (₪):', fee);
+  if (amt === null) return;
+  amt = Number(amt);
+  if (!(amt > 0)) { alert('סכום לא תקין'); return; }
+
+  // מתפלל שטרם חויב — נרשם קודם החיוב, כדי שהכרטיס יישאר מאוזן
+  if (r.memberId && !r.chargeId) chargeHHFee(r.id, true);
+
+  var entry = {
+    id: 't' + Date.now() + Math.floor(Math.random() * 1000),
+    memberId: r.memberId || '',
+    date: new Date().toISOString().split('T')[0],
+    type: 'payment',
+    amount: amt,
+    desc: 'תשלום דמי רישום ' + hhHolidayLabel(hhHoliday(r)) + ' ' + r.year
+        + (r.memberId ? '' : ' — ' + hhRegName(r)) + ' ' + hhPayTag(r)
+  };
+  STATE.ledger = STATE.ledger || [];
+  STATE.ledger.push(entry);
+  saveLedgerLocal();
+  syncSaveLedger(entry);
+
+  renderHH();
+  if (typeof renderMembers === 'function') renderMembers();
+  showAlert('hh', '✅ נרשם תשלום ' + fmtMoney(amt) + ' — ' + hhRegName(r), 'success');
+}
+
+function hhUnmarkPaid(id) {
+  var r = (STATE.hh || []).filter(function(x) { return x.id === id; })[0];
+  if (!r) return;
+  var e = hhPayEntry(r);
+  if (!e) return;
+  if (!confirm('לבטל את סימון התשלום של ' + hhRegName(r) + ' (' + fmtMoney(e.amount) + ')?\n\nהתנועה תימחק גם מכרטיס החוב.')) return;
+
+  STATE.ledger = (STATE.ledger || []).filter(function(t) { return t.id !== e.id; });
+  saveLedgerLocal();
+  syncDeleteLedger(e.id);
+
+  renderHH();
+  if (typeof renderMembers === 'function') renderMembers();
+  showAlert('hh', 'סימון התשלום בוטל', 'success');
 }
 
 // ---------- קישור צפייה בלבד (לגבאי נוסף) ----------
@@ -3347,15 +3451,18 @@ function exportHHCSV() {
   var year = hhCurrentYear();
   var flt = hhFilter();
   var rng = hhDateRange();
-  var head = ['שם', 'חג', 'גברים', 'עזרת נשים', 'תאריך רישום', 'דמי רישום', 'חויב', 'הערות'];
+  var head = ['שם', 'חג', 'גברים', 'עזרת נשים', 'תאריך רישום', 'דמי רישום', 'חויב', 'שולם', 'סכום ששולם', 'תאריך תשלום', 'הערות'];
   var lines = [head.join(',')];
   (STATE.hh || []).filter(function(r) {
       return r.year === year && (flt === 'all' || hhHoliday(r) === flt) && hhInRange(r, rng);
     })
     .sort(hhCompare)
     .forEach(function(r) {
+      var pe = hhPayEntry(r);
       var row = [hhRegName(r), hhHolidayLabel(hhHoliday(r)), hhMen(r), hhWomen(r),
-                 hhRegDateHe(r), r.fee || 0, r.chargeId ? 'כן' : 'לא', r.notes || ''];
+                 hhRegDateHe(r), r.fee || 0, r.chargeId ? 'כן' : 'לא',
+                 pe ? 'כן' : 'לא', pe ? Number(pe.amount || 0) : 0, pe ? (pe.date || '') : '',
+                 r.notes || ''];
       lines.push(row.map(function(c) {
         var s = String(c == null ? '' : c);
         return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
