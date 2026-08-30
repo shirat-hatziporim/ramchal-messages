@@ -1116,6 +1116,11 @@
           <input type="number" id="hh-cap-men" min="0" placeholder="גברים" onchange="hhCapChange()" style="width:90px;padding:9px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;">
           <input type="number" id="hh-cap-women" min="0" placeholder="עזרת נשים" onchange="hhCapChange()" style="width:110px;padding:9px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;">
         </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px;color:var(--gray-mid);">
+          <span>תעריף למקום (₪):</span>
+          <input type="number" id="hh-rate-member" min="0" placeholder="מתפלל" onchange="hhRateChange()" style="width:95px;padding:9px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;">
+          <input type="number" id="hh-rate-guest" min="0" placeholder="אורח" onchange="hhRateChange()" style="width:95px;padding:9px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;">
+        </div>
         <button class="btn btn-outline btn-sm" onclick="exportHHCSV()">ייצוא CSV</button>
       </div>
 
@@ -1125,6 +1130,12 @@
         <button class="btn btn-outline btn-sm" id="hhf-all" onclick="hhFilterChange('all')">הכל</button>
         <button class="btn btn-outline btn-sm" id="hhf-rh" onclick="hhFilterChange('rh')">ראש השנה</button>
         <button class="btn btn-outline btn-sm" id="hhf-yk" onclick="hhFilterChange('yk')">יום כיפור</button>
+        <span style="width:1px;height:24px;background:var(--gray-light);margin:0 4px;"></span>
+        <span style="font-size:13px;color:var(--gray-mid);">תאריך רישום:</span>
+        <input type="date" id="hh-from" onchange="hhDateChange()" style="padding:7px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;font-size:13px;">
+        <span style="font-size:13px;color:var(--gray-mid);">עד</span>
+        <input type="date" id="hh-to" onchange="hhDateChange()" style="padding:7px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;font-size:13px;">
+        <button class="btn btn-outline btn-sm" onclick="hhClearDates()">נקה</button>
       </div>
 
       <div style="overflow-x:auto;">
@@ -1139,6 +1150,7 @@
               <th>שם</th>
               <th style="width:110px;">חג</th>
               <th>מקומות</th>
+              <th style="width:100px;">נרשם</th>
               <th style="width:110px;text-align:center;">דמי רישום</th>
               <th style="width:170px;">פעולות</th>
             </tr>
@@ -1321,7 +1333,7 @@
 
     <div class="form-group">
       <label>מתפלל</label>
-      <select id="hf-member" onchange="hhToggleGuestName()"></select>
+      <select id="hf-member" onchange="hhToggleGuestName(); hhRecalcFee();"></select>
     </div>
     <div class="form-group" id="hf-name-wrap">
       <label>שם (אורח שאינו ברשימה)</label>
@@ -1337,11 +1349,15 @@
     </div>
 
     <div class="grid-2" style="gap:0 14px;">
-      <div class="form-group"><label>מקומות גברים</label><input type="number" id="hf-men" min="0" step="1" style="direction:ltr;"></div>
-      <div class="form-group"><label>מקומות עזרת נשים</label><input type="number" id="hf-women" min="0" step="1" style="direction:ltr;"></div>
+      <div class="form-group"><label>מקומות גברים</label><input type="number" id="hf-men" min="0" step="1" oninput="hhRecalcFee()" style="direction:ltr;"></div>
+      <div class="form-group"><label>מקומות עזרת נשים</label><input type="number" id="hf-women" min="0" step="1" oninput="hhRecalcFee()" style="direction:ltr;"></div>
     </div>
 
-    <div class="form-group"><label>דמי רישום (₪)</label><input type="number" id="hf-fee" min="0" step="1" style="direction:ltr;"></div>
+    <div class="form-group">
+      <label>דמי רישום (₪)</label>
+      <input type="number" id="hf-fee" min="0" step="1" style="direction:ltr;">
+      <div id="hf-fee-hint" style="font-size:11px;color:var(--gray-mid);margin-top:4px;"></div>
+    </div>
     <div class="form-group"><label>הערות</label><input type="text" id="hf-notes" placeholder="מקום קבוע, בקשה מיוחדת…"></div>
 
     <div style="display:flex;gap:10px;justify-content:space-between;margin-top:6px;">
@@ -1450,7 +1466,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-08-30.1';
+var APP_VERSION = '2026-08-30.2';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2849,6 +2865,97 @@ function hhHolidayLabel(h) { return h === 'yk' ? 'יום כיפור' : 'ראש �
 function hhMen(r)   { return Number(hhHoliday(r) === 'yk' ? (r.ykMen || 0)   : (r.rhMen || 0)); }
 function hhWomen(r) { return Number(hhHoliday(r) === 'yk' ? (r.ykWomen || 0) : (r.rhWomen || 0)); }
 
+var HH_RATE_DEFAULT = { member: 25, guest: 50 };
+
+function hhRates() {
+  var r = {};
+  try { r = JSON.parse(localStorage.getItem('hh_rates') || '{}') || {}; } catch (e) { r = {}; }
+  return {
+    member: (r.member === 0 || r.member) ? Number(r.member) : HH_RATE_DEFAULT.member,
+    guest:  (r.guest  === 0 || r.guest)  ? Number(r.guest)  : HH_RATE_DEFAULT.guest
+  };
+}
+
+function hhRateChange() {
+  var m = Number((document.getElementById('hh-rate-member') || {}).value || 0);
+  var g = Number((document.getElementById('hh-rate-guest') || {}).value || 0);
+  localStorage.setItem('hh_rates', JSON.stringify({ member: Math.max(0, m), guest: Math.max(0, g) }));
+  renderHH();
+}
+
+// חישוב דמי הרישום: מספר המקומות × התעריף (מתפלל/אורח)
+function hhRecalcFee() {
+  var sel = document.getElementById('hf-member');
+  var guest = !(sel && sel.value);
+  var rate = guest ? hhRates().guest : hhRates().member;
+  var n = function(id) { return Math.max(0, Number((document.getElementById(id) || {}).value || 0)); };
+  var seats = n('hf-men') + n('hf-women');
+  var fee = seats * rate;
+  var el = document.getElementById('hf-fee');
+  if (el) el.value = fee || '';
+  hhFeeHint();
+}
+
+function hhFeeHint() {
+  var hint = document.getElementById('hf-fee-hint');
+  if (!hint) return;
+  var sel = document.getElementById('hf-member');
+  var guest = !(sel && sel.value);
+  var rates = hhRates();
+  var rate = guest ? rates.guest : rates.member;
+  var n = function(id) { return Math.max(0, Number((document.getElementById(id) || {}).value || 0)); };
+  var seats = n('hf-men') + n('hf-women');
+  hint.textContent = (guest ? 'אורח' : 'מתפלל') + ': ' + rate + ' ₪ למקום'
+    + (seats ? ' · ' + seats + ' מקומות = ' + (seats * rate) + ' ₪' : '')
+    + ' (ניתן לשנות ידנית)';
+}
+
+// תאריך הרישום נגזר ממזהה הרשומה ('h' + חותמת זמן) — נקבע ביצירה ואינו משתנה בעריכה
+function hhRegDate(r) {
+  var m = String(r.id || '').match(/^h(\d{12,})/);
+  if (!m) return '';
+  var d = new Date(Number(m[1]));
+  if (isNaN(d.getTime())) return '';
+  var pad = function(x) { return (x < 10 ? '0' : '') + x; };
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+
+function hhRegDateHe(r) {
+  var d = hhRegDate(r);
+  if (!d) return '';
+  var p = d.split('-');
+  return p[2] + '/' + p[1] + '/' + p[0];
+}
+
+function hhDateRange() {
+  var o = {};
+  try { o = JSON.parse(localStorage.getItem('hh_dates') || '{}') || {}; } catch (e) { o = {}; }
+  return { from: o.from || '', to: o.to || '' };
+}
+
+function hhDateChange() {
+  var f = ((document.getElementById('hh-from') || {}).value) || '';
+  var t = ((document.getElementById('hh-to') || {}).value) || '';
+  localStorage.setItem('hh_dates', JSON.stringify({ from: f, to: t }));
+  renderHH();
+}
+
+function hhClearDates() {
+  localStorage.removeItem('hh_dates');
+  var f = document.getElementById('hh-from'); if (f) f.value = '';
+  var t = document.getElementById('hh-to');   if (t) t.value = '';
+  renderHH();
+}
+
+function hhInRange(r, rng) {
+  if (!rng.from && !rng.to) return true;
+  var d = hhRegDate(r);
+  if (!d) return false;
+  if (rng.from && d < rng.from) return false;
+  if (rng.to && d > rng.to) return false;
+  return true;
+}
+
 function hhFilter() {
   var v = localStorage.getItem('hh_filter') || 'all';
   return (v === 'rh' || v === 'yk') ? v : 'all';
@@ -2907,6 +3014,18 @@ function renderHH() {
   if (capM && capM.value === '') capM.value = cap.men || '';
   if (capW && capW.value === '') capW.value = cap.women || '';
 
+  var rates = hhRates();
+  var rM = document.getElementById('hh-rate-member');
+  var rG = document.getElementById('hh-rate-guest');
+  if (rM && rM.value === '') rM.value = rates.member;
+  if (rG && rG.value === '') rG.value = rates.guest;
+
+  var rng = hhDateRange();
+  var dF = document.getElementById('hh-from');
+  var dT = document.getElementById('hh-to');
+  if (dF && dF.value !== rng.from) dF.value = rng.from;
+  if (dT && dT.value !== rng.to) dT.value = rng.to;
+
   hhSplitMixed();
   var list = (STATE.hh || []).filter(function(r) { return r.year === year; });
 
@@ -2915,7 +3034,9 @@ function renderHH() {
     var b = document.getElementById('hhf-' + k);
     if (b) b.className = 'btn btn-sm ' + (k === flt ? 'btn-primary' : 'btn-outline');
   });
-  var view = list.filter(function(r) { return flt === 'all' || hhHoliday(r) === flt; });
+  var view = list.filter(function(r) {
+    return (flt === 'all' || hhHoliday(r) === flt) && hhInRange(r, rng);
+  });
 
   var t = { rhMen: 0, rhWomen: 0, ykMen: 0, ykWomen: 0, fee: 0 };
   list.forEach(function(r) {
@@ -2937,6 +3058,7 @@ function renderHH() {
     var vFee = 0;
     view.forEach(function(r) { vFee += Number(r.fee || 0); });
     parts.push(view.length + ' נרשמים' + (flt === 'all' ? '' : ' ל' + hhHolidayLabel(flt))
+      + ((rng.from || rng.to) ? ' (מסונן לפי תאריך)' : '')
       + ' · ' + fmtMoney(vFee) + ' דמי רישום');
     if (cap.men)   parts.push('גברים: ' + maxMen + '/' + cap.men + ' (נותרו ' + Math.max(0, cap.men - maxMen) + ')');
     if (cap.women) parts.push('עזרת נשים: ' + maxWomen + '/' + cap.women + ' (נותרו ' + Math.max(0, cap.women - maxWomen) + ')');
@@ -2979,6 +3101,8 @@ function renderHH() {
       + '<td><span class="badge ' + (h === 'yk' ? 'badge-navy' : 'badge-gold') + '">'
       + hhHolidayLabel(h) + '</span></td>'
       + '<td style="font-size:13px;">' + cell(hhMen(r), hhWomen(r)) + '</td>'
+      + '<td style="font-size:12px;color:var(--gray-mid);white-space:nowrap;">'
+      + (hhRegDateHe(r) || '—') + '</td>'
       + '<td style="direction:ltr;text-align:center;white-space:nowrap;font-size:13px;">'
       + (Number(r.fee || 0) ? fmtMoney(r.fee) + (r.chargeId ? ' <span class="badge badge-success">חויב</span>' : '') : '—')
       + '</td>'
@@ -3032,6 +3156,7 @@ function openHHModal(id) {
   var del = document.getElementById('hf-delete');
   if (del) del.style.display = r ? '' : 'none';
   hhToggleGuestName();
+  if (!r) hhRecalcFee(); else hhFeeHint();
   document.getElementById('hh-modal').style.display = 'flex';
 }
 
@@ -3121,13 +3246,16 @@ function chargeHHFee(id) {
 function exportHHCSV() {
   var year = hhCurrentYear();
   var flt = hhFilter();
-  var head = ['שם', 'חג', 'גברים', 'עזרת נשים', 'דמי רישום', 'חויב', 'הערות'];
+  var rng = hhDateRange();
+  var head = ['שם', 'חג', 'גברים', 'עזרת נשים', 'תאריך רישום', 'דמי רישום', 'חויב', 'הערות'];
   var lines = [head.join(',')];
-  (STATE.hh || []).filter(function(r) { return r.year === year && (flt === 'all' || hhHoliday(r) === flt); })
+  (STATE.hh || []).filter(function(r) {
+      return r.year === year && (flt === 'all' || hhHoliday(r) === flt) && hhInRange(r, rng);
+    })
     .sort(function(a, b) { return hhRegName(a).localeCompare(hhRegName(b), 'he'); })
     .forEach(function(r) {
       var row = [hhRegName(r), hhHolidayLabel(hhHoliday(r)), hhMen(r), hhWomen(r),
-                 r.fee || 0, r.chargeId ? 'כן' : 'לא', r.notes || ''];
+                 hhRegDateHe(r), r.fee || 0, r.chargeId ? 'כן' : 'לא', r.notes || ''];
       lines.push(row.map(function(c) {
         var s = String(c == null ? '' : c);
         return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
