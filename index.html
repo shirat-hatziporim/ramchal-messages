@@ -1123,6 +1123,7 @@
         </div>
         <button class="btn btn-gold btn-sm" onclick="hhApplyFees()">חשב דמי רישום</button>
         <button class="btn btn-outline btn-sm" onclick="exportHHCSV()">ייצוא CSV</button>
+        <button class="btn btn-outline btn-sm" onclick="hhCopyViewLink()">👁 קישור צפייה</button>
       </div>
 
       <div id="hh-remaining" style="font-size:13px;color:var(--navy);font-weight:600;margin-bottom:10px;"></div>
@@ -1474,7 +1475,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-08-30.4';
+var APP_VERSION = '2026-08-30.5';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -3276,6 +3277,27 @@ function chargeHHFee(id) {
   syncSaveHH(r);
   renderHH();
   showAlert('hh', '✅ החיוב נרשם בכרטיס', 'success');
+}
+
+// ---------- קישור צפייה בלבד (לגבאי נוסף) ----------
+function hhViewLink() {
+  var base = location.href.split('?')[0].split('#')[0].replace(/[^\/]*$/, '');
+  var cap = hhCapacity();
+  var q = ['year=' + encodeURIComponent(hhCurrentYear())];
+  if (cap.men) q.push('men=' + cap.men);
+  if (cap.women) q.push('women=' + cap.women);
+  return base + 'hh-view.html?' + q.join('&');
+}
+
+function hhCopyViewLink() {
+  var url = hhViewLink();
+  var ok = function() { showAlert('hh', '✅ הקישור הועתק — אפשר לשלוח בוואטסאפ', 'success'); };
+  var fallback = function() { prompt('העתיקו את הקישור לצפייה:', url); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(ok, fallback);
+  } else {
+    fallback();
+  }
 }
 
 // ---------- חישוב דמי רישום לרישומים קיימים ----------
