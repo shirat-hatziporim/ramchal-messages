@@ -1,7 +1,7 @@
 // ============================================================
 //  מערכת זמני שבת אוטומטית | בית כנסת הרמח"ל מיצד
 //  Google Apps Script - קובץ ראשי
-//  גרסה 2.1 | תשפ"ו
+//  גרסה 2.2 | תשפ"ז
 // ============================================================
 
 // ==================== הגדרות ====================
@@ -142,12 +142,14 @@ function saveWhatsappMessage(message) {
 function isHolidayWeekend(shabbatDate) {
   const friday = new Date(shabbatDate); friday.setDate(shabbatDate.getDate() - 1);
   const sunday = new Date(shabbatDate); sunday.setDate(shabbatDate.getDate() + 1);
-  return checkIfHoliday(friday) || checkIfHoliday(sunday);
+  // ⚠ נבדקת גם השבת עצמה: ר"ה, א' סוכות ושמיני עצרת חלים לעיתים בשבת,
+  // ואז אין יו"ט בשישי או בראשון ולא הייתה מתבצעת דילוג.
+  return checkIfHoliday(friday) || checkIfHoliday(shabbatDate) || checkIfHoliday(sunday);
 }
 
 function checkIfHoliday(date) {
   const dateStr = Utilities.formatDate(date, "Asia/Jerusalem", "yyyy-MM-dd");
-  const url = `https://www.hebcal.com/hebcal?v=1&cfg=json&maj=on&min=off&mod=off&nx=off&year=${date.getFullYear()}&month=${date.getMonth()+1}&ss=off&mf=off&c=off&geo=none&m=0&s=on`;
+  const url = `https://www.hebcal.com/hebcal?v=1&cfg=json&maj=on&min=off&mod=off&nx=off&year=${date.getFullYear()}&month=${date.getMonth()+1}&ss=off&mf=off&c=off&geo=none&m=0&s=on&i=on`;
   try {
     const data = JSON.parse(UrlFetchApp.fetch(url).getContentText());
     return (data.items || []).some(i => i.date === dateStr && i.category === "holiday" && i.yomtov === true);
@@ -167,7 +169,7 @@ function getParasha(date) {
 
   // שיטה 1: endpoint shabbat — מחזיר hebrew ישירות
   try {
-    const url1 = `https://www.hebcal.com/shabbat?cfg=json&latitude=${CONFIG.LAT}&longitude=${CONFIG.LNG}&tzid=Asia/Jerusalem&m=0`;
+    const url1 = `https://www.hebcal.com/shabbat?cfg=json&latitude=${CONFIG.LAT}&longitude=${CONFIG.LNG}&tzid=Asia/Jerusalem&m=0&i=on`;
     const data1 = JSON.parse(UrlFetchApp.fetch(url1).getContentText());
     const p1 = (data1.items || []).find(i => i.category === "parashat");
     if (p1) {
@@ -183,7 +185,7 @@ function getParasha(date) {
 
   // שיטה 2: endpoint hebcal לפי חודש
   try {
-    const url2 = `https://www.hebcal.com/hebcal?v=1&cfg=json&maj=off&min=off&mod=off&nx=off&year=${date.getFullYear()}&month=${date.getMonth()+1}&ss=off&mf=off&c=off&geo=none&m=0&s=on&F=on`;
+    const url2 = `https://www.hebcal.com/hebcal?v=1&cfg=json&maj=off&min=off&mod=off&nx=off&year=${date.getFullYear()}&month=${date.getMonth()+1}&ss=off&mf=off&c=off&geo=none&m=0&s=on&F=on&i=on`;
     const data2 = JSON.parse(UrlFetchApp.fetch(url2).getContentText());
     const p2 = (data2.items || []).find(i => i.date === dateStr && i.category === "parashat");
     if (p2) {
@@ -339,7 +341,7 @@ function doGet(e) {
           shabbat.setDate(today.getDate() + daysUntilSat);
           var dateStr = Utilities.formatDate(shabbat, "Asia/Jerusalem", "yyyy-MM-dd");
           var parts = dateStr.split('-');
-          var pUrl = "https://www.hebcal.com/hebcal?v=1&cfg=json&maj=off&min=off&F=on&year=" + parts[0] + "&month=" + parts[1] + "&ss=off&mf=off&c=off&geo=none&m=0&s=on";
+          var pUrl = "https://www.hebcal.com/hebcal?v=1&cfg=json&maj=off&min=off&F=on&year=" + parts[0] + "&month=" + parts[1] + "&ss=off&mf=off&c=off&geo=none&m=0&s=on&i=on";
           var pResp = UrlFetchApp.fetch(pUrl);
           var pData = JSON.parse(pResp.getContentText());
           var pItems = pData.items || [];
