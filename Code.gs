@@ -18,7 +18,25 @@ const CONFIG = {
   AVOT_BANIM_BEFORE_MINCHA_MIN: 40,
   MINCHA_SHABBAT_BEFORE_SHKIA_MIN: 40,
   MAARIV_MOTZASH_AFTER_TZET_MIN: 10,
+  // כתובת הגבאי להתראות מערכת. משמשת כגיבוי בלבד‏ — ראו getAdminEmail().
+  ADMIN_EMAIL: "4103353@gmail.com",
 };
+
+// כתובת למשלוח התראות פנימיות (שגיאות, "יש לשלוח ידנית", הודעת הוואטסאפ).
+// ⚠ בטריגרים מתוזמנים Session.getActiveUser() מחזיר לעיתים מחרוזת ריקה,
+// ואז GmailApp נכשל בשקט וההתראה נעלמת. לכן: משתמש אפקטיבי (בעל הסקריפט),
+// ואם גם הוא ריק — נפילה לכתובת קשיחה, כדי שהתראה לעולם לא תאבד.
+function getAdminEmail() {
+  try {
+    var eff = Session.getEffectiveUser().getEmail();
+    if (eff) return eff;
+  } catch (e) {}
+  try {
+    var act = Session.getActiveUser().getEmail();
+    if (act) return act;
+  } catch (e) {}
+  return CONFIG.ADMIN_EMAIL;
+}
 
 // ==================== בלאנק רשמי (2 חלקים) ====================
 // TOP = לוגו עליון | BOT = פוטר תחתון. האמצע (לבן) נמתח לפי אורך התוכן.
@@ -47,7 +65,7 @@ function sendWeeklyZmanim() {
 
   } catch (e) {
     Logger.log("❌ שגיאה: " + e.toString());
-    GmailApp.sendEmail(Session.getActiveUser().getEmail(),
+    GmailApp.sendEmail(getAdminEmail(),
       "⚠️ שגיאה במערכת זמני שבת", "שגיאה: " + e.toString());
   }
 }
@@ -131,7 +149,7 @@ function saveWhatsappMessage(message) {
   doc.saveAndClose();
 
   GmailApp.sendEmail(
-    Session.getActiveUser().getEmail(),
+    getAdminEmail(),
     "הודעת וואטסאפ מוכנה לשליחה",
     "העתק ושלח לקבוצה:\n\n━━━━━━━━━━━━━━━━\n" + message +
     "\n━━━━━━━━━━━━━━━━\n\nקישור לדוקומנט: " + doc.getUrl()
@@ -158,7 +176,7 @@ function checkIfHoliday(date) {
 
 function notifyGabbai(shabbatDate, parasha) {
   const dateStr = Utilities.formatDate(shabbatDate, "Asia/Jerusalem", "dd/MM/yyyy");
-  GmailApp.sendEmail(Session.getActiveUser().getEmail(),
+  GmailApp.sendEmail(getAdminEmail(),
     "⚠️ השבוע חל חג - יש לשלוח ידנית",
     `שלום!\n\nהשבוע (${dateStr}) חל חג ביום שישי או ראשון.\nיש לשלוח ידנית עבור פרשת ${parasha} כולל זמני החג.`);
 }
