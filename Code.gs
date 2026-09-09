@@ -562,6 +562,57 @@ function buildBlankPage(innerContent) {
     + '</td></tr></table></body></html>';
 }
 
+
+// ==================== גיבוי שבועי של הגיליון ====================
+// RamchalSync מחזיק היסטוריה, תבניות, מתפללים, כרטיסי חוב ורישומי ימים נוראים.
+// אין לו גיבוי מובנה, והוא מאותר לפי שם — שינוי שם או מחיקה מאבדים הכל.
+// הטריגר יוצר עותק מלא בכל שבוע ושומר את 12 האחרונים.
+const BACKUP_FOLDER_NAME = 'גיבויים - RamchalSync';
+const BACKUP_KEEP = 12;
+
+function weeklyBackup() {
+  try {
+    var ss = getOrCreateSyncSheet();
+    var file = DriveApp.getFileById(ss.getId());
+    var folder = getOrCreateBackupFolder();
+    var stamp = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd');
+    var copy = file.makeCopy('RamchalSync - גיבוי ' + stamp, folder);
+    pruneBackups(folder, BACKUP_KEEP);
+    Logger.log('✅ גיבוי נוצר: ' + copy.getName() + ' | ' + copy.getUrl());
+    return copy.getUrl();
+  } catch (e) {
+    Logger.log('❌ שגיאה בגיבוי: ' + e.toString());
+    try {
+      GmailApp.sendEmail(getAdminEmail(), '⚠️ גיבוי RamchalSync נכשל',
+        'הגיבוי השבועי של הגיליון נכשל.\n\nשגיאה: ' + e.toString());
+    } catch (e2) {}
+  }
+}
+
+function getOrCreateBackupFolder() {
+  var it = DriveApp.getFoldersByName(BACKUP_FOLDER_NAME);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(BACKUP_FOLDER_NAME);
+}
+
+// משאיר את keep הגיבויים החדשים ביותר, השאר לסל המיחזור
+function pruneBackups(folder, keep) {
+  var files = [];
+  var it = folder.getFiles();
+  while (it.hasNext()) files.push(it.next());
+  files.sort(function (a, b) { return b.getDateCreated() - a.getDateCreated(); });
+  for (var i = keep; i < files.length; i++) files[i].setTrashed(true);
+}
+
+// להריץ ידנית פעם אחת בעורך
+function setupBackupTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'weeklyBackup') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('weeklyBackup')
+    .timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(2).nearMinute(0).create();
+  Logger.log('✅ טריגר גיבוי שבועי הוגדר — כל יום ראשון בשעה 02:00');
+}
+
 // ==================== סנכרון נתונים ====================
 function getOrCreateSyncSheet() {
   var sheetName = 'RamchalSync';
