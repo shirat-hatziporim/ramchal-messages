@@ -1586,7 +1586,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-09.6';
+var APP_VERSION = '2026-09-09.7';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2352,8 +2352,8 @@ async function buildChag() {
       });
     });
 
-    // תיקון השקיעה לאופק מיצד — נשמר בין חג לחג
-    chagApplyAdj(days, +(STATE.settings.chagShkiaAdj || 0));
+    // תיקוני שקיעה ידניים שנשמרו לתאריכים האלה
+    chagApplyOv(days);
 
     CHAG.current = { block: b, days: days, s: s };
     renderChagZmanim();
@@ -2623,11 +2623,26 @@ function buildChagText() {
   return L.join('\n');
 }
 
-// מחיל תיקון דקות על השקיעה ועל צאת הכוכבים (סוף זמן ק"ש אינו מושפע)
-function chagApplyAdj(days, delta) {
-  delta = +delta || 0;
+// ===== תיקוני שקיעה ידניים — לכל תאריך בנפרד (לוח מיצד) =====
+// נשמרים ב-localStorage לפי תאריך, ולכן נשארים גם אחרי רענון.
+function chagOverrides() {
+  try { return JSON.parse(localStorage.getItem('chag_shkia_ov') || '{}') || {}; }
+  catch (e) { return {}; }
+}
+function chagSaveOverrides(o) {
+  localStorage.setItem('chag_shkia_ov', JSON.stringify(o));
+}
+
+// מחיל את התיקון של כל יום על השקיעה ועל צאת הכוכבים שלו בלבד.
+// סוף זמן ק"ש והנץ אינם מושפעים — הם זמני בוקר.
+function chagApplyOv(days) {
+  var ov = chagOverrides();
   days.forEach(function (d) {
     if (!d.zRaw) return;
+    var delta = 0;
+    var v = ov[d.date];
+    if (v && /^\d{1,2}:\d{2}$/.test(v)) delta = toMinutes(v) - toMinutes(d.zRaw.shkia);
+    d.adj = delta;
     d.z = {
       date: d.zRaw.date,
       shkia: addMins(d.zRaw.shkia, delta),
@@ -2638,35 +2653,47 @@ function chagApplyAdj(days, delta) {
   });
 }
 
-// עריכת השקיעה של יום כלשהו — ההפרש מוחל על כל ימי החג ונשמר להבא
-function chagShkiaOverride(dateStr, val) {
+function chagRefreshAfterOv() {
   var c = CHAG.current;
-  if (!c || !val || !/^\d{1,2}:\d{2}$/.test(val)) return;
-  var day = null;
-  c.days.forEach(function (d) { if (d.date === dateStr) day = d; });
-  if (!day || !day.zRaw) return;
-
-  var delta = toMinutes(val) - toMinutes(day.zRaw.shkia);
-  STATE.settings.chagShkiaAdj = delta;
-  localStorage.setItem('msg_settings', JSON.stringify(STATE.settings));
-
-  chagApplyAdj(c.days, delta);
+  if (!c) return;
+  chagApplyOv(c.days);
   renderChagZmanim();
   var ta = document.getElementById('chag-message');
   if (ta) { ta.value = buildChagText(); updateChagPreview(); }
-  showAlert('chag', delta
-    ? 'תיקון שקיעה ' + (delta > 0 ? '+' : '') + delta + ' דק\' הוחל על כל ימי החג ונשמר.'
-    : 'תיקון השקיעה אופס.', 'success');
+}
+
+// עריכת השקיעה של יום אחד — משפיעה על אותו יום בלבד
+function chagShkiaOverride(dateStr, val) {
+  var c = CHAG.current;
+  if (!c) return;
+  var ov = chagOverrides();
+  if (val && /^\d{1,2}:\d{2}$/.test(val)) ov[dateStr] = val;
+  else delete ov[dateStr];
+  chagSaveOverrides(ov);
+  chagRefreshAfterOv();
+  showAlert('chag', 'השקיעה עודכנה ליום זה בלבד. שאר הימים לא השתנו.', 'success');
+}
+
+// איפוס התיקונים של החג הנוכחי
+function chagResetOverrides() {
+  var c = CHAG.current;
+  if (!c) return;
+  var ov = chagOverrides();
+  c.days.forEach(function (d) { delete ov[d.date]; });
+  chagSaveOverrides(ov);
+  chagRefreshAfterOv();
+  showAlert('chag', 'התיקונים אופסו — חזרה לזמני Hebcal.', 'success');
 }
 
 function renderChagZmanim() {
   var c = CHAG.current;
   var box = document.getElementById('chag-zmanim');
   if (!c || !box) return;
-  var adj = +(STATE.settings.chagShkiaAdj || 0);
-  var html = '<div class="chag-hint">אפשר לתקן את השקיעה לאופק מיצד. ההפרש יוחל על כל ימי החג, '
-           + 'יעדכן את כל הזמנים הנגזרים, וישמר גם לחגים הבאים.'
-           + (adj ? ' <b>תיקון נוכחי: ' + (adj > 0 ? '+' : '') + adj + ' דק\'</b>' : '')
+  var anyAdj = c.days.some(function (d) { return d.adj; });
+  var html = '<div class="chag-hint">אפשר לתקן את השקיעה לפי לוח מיצד. '
+           + 'כל יום נערך בנפרד — שינוי ביום אחד לא משפיע על האחרים. '
+           + 'התיקון נשמר ומעדכן את כל הזמנים הנגזרים באותו יום.'
+           + (anyAdj ? ' <a href="#" onclick="chagResetOverrides();return false;">איפוס התיקונים</a>' : '')
            + '</div>';
   html += c.days.map(function (day, i) {
     var z = day.z;
@@ -2675,7 +2702,9 @@ function renderChagZmanim() {
            + '<div class="zman-time">' + t + '</div></div>';
     };
     return '<div class="chag-day-head">' + escHtml(chagWeekday(day.d) + ' ' + chagGreg(day.d) + ' — ' + chagDayLabel(c, i)) + '</div>'
-      + '<div class="zman-row"><div><div class="zman-name">שקיעה</div></div><div>'
+      + '<div class="zman-row"><div><div class="zman-name">שקיעה</div>'
+      + (day.adj ? '<div class="zman-note">תוקן ידנית (' + (day.adj > 0 ? '+' : '') + day.adj + ' דק\')</div>' : '')
+      + '</div><div>'
       + '<input type="time" class="chag-shkia" value="' + z.shkia + '" '
       + 'onchange="chagShkiaOverride(\'' + day.date + '\', this.value)"></div></div>'
       + row('צאת הכוכבים', z.tzet)
