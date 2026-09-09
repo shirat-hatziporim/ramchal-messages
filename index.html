@@ -101,6 +101,9 @@
     50% { opacity: 0.4; }
   }
 
+  .chag-range { font-size:13px; color:var(--gray-mid); margin:-6px 0 12px; line-height:1.6; }
+  .chag-day-head { font-size:13px; font-weight:700; color:var(--navy); background:#f5f0e8;
+                   border-right:3px solid var(--gold); padding:6px 10px; margin:10px 0 2px; border-radius:4px; }
   /* ===== NAV TABS ===== */
   .nav-tabs {
     background: var(--navy);
@@ -633,6 +636,7 @@
       <button class="tab-btn active" onclick="switchTab('dashboard')">לוח בקרה</button>
       <button class="tab-btn" onclick="switchTab('shabbat')">זמני שבת</button>
       <button class="tab-btn" onclick="switchTab('custom')">הודעה חופשית</button>
+      <button class="tab-btn" onclick="switchTab('chag')">חגים</button>
       <button class="tab-btn" onclick="switchTab('members')">מתפללים</button>
       <button class="tab-btn" onclick="switchTab('hh')">ימים נוראים</button>
       <button class="tab-btn" onclick="switchTab('history')">היסטוריה</button>
@@ -701,6 +705,9 @@
         <div style="display:flex;flex-direction:column;gap:10px;">
           <button class="btn btn-primary btn-full" onclick="switchTab('shabbat')">
             📅 שלח זמני שבת
+          </button>
+          <button class="btn btn-outline btn-full" onclick="switchTab('chag')">
+            🕎 הודעת חג
           </button>
           <button class="btn btn-gold btn-full" onclick="switchTab('custom')">
             ✏️ שלח הודעה חופשית
@@ -958,6 +965,105 @@
           📱 העתק לוואטסאפ
         </button>
         <button class="btn btn-primary btn-lg" onclick="sendCustom('both')">
+          🚀 שלח הכל
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CHAG / HOLIDAY MESSAGE ===== -->
+  <div id="tab-chag" class="tab-panel">
+    <div class="section-header">
+      <div>
+        <h2>הודעת חג</h2>
+        <p>חישוב אוטומטי של זמני החג — כולל חגים הצמודים לשבת</p>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- בחירה והגדרות -->
+      <div class="card">
+        <div class="card-title">
+          <div class="icon">🕎</div>
+          בחירת חג
+        </div>
+
+        <div class="form-group">
+          <label>חג</label>
+          <select id="chag-select" onchange="onChagSelect()">
+            <option value="">טוען רשימת חגים...</option>
+          </select>
+        </div>
+
+        <div id="chag-range" class="chag-range"></div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label>שחרית</label>
+            <input type="time" id="chag-shacharit" value="08:00">
+          </div>
+          <div class="form-group">
+            <label>הדלקת נרות (דק' לפני השקיעה)</label>
+            <input type="number" id="chag-candles" min="0" max="90" step="1" value="20" style="direction:ltr;">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>הערה מיוחדת (אופציונלי)</label>
+          <input type="text" id="chag-note" placeholder="לדוגמה: קידוש לאחר התפילה">
+        </div>
+
+        <button class="btn btn-primary btn-full" id="chag-build-btn" onclick="buildChag()">
+          🔄 חשב זמנים ובנה הודעה
+        </button>
+      </div>
+
+      <!-- תצוגת זמנים -->
+      <div class="card">
+        <div class="card-title">
+          <div class="icon">🕐</div>
+          זמני החג
+        </div>
+        <div id="chag-zmanim">
+          <div style="text-align:center;color:var(--gray-mid);padding:30px 0;">
+            בחר חג ולחץ "חשב זמנים"
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- עריכת הודעה -->
+    <div class="card">
+      <div class="card-title">
+        <div class="icon">✏️</div>
+        עריכת ההודעה לפני שליחה
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <div class="form-group">
+            <label>טקסט ההודעה (לוואטסאפ ומייל)</label>
+            <textarea id="chag-message" oninput="updateChagPreview()" placeholder="ההודעה תיבנה כאן לאחר החישוב..."></textarea>
+          </div>
+        </div>
+        <div>
+          <label style="display:block;font-size:13px;font-weight:600;color:var(--navy);margin-bottom:6px;">תצוגה מקדימה</label>
+          <div class="preview-box" id="chag-preview" style="min-height:170px;">
+            ההודעה תופיע כאן...
+          </div>
+        </div>
+      </div>
+
+      <div id="chag-alert" class="alert"></div>
+
+      <div class="btn-group">
+        <button class="btn btn-success btn-lg" onclick="sendChag('email')">
+          📧 שלח מייל
+        </button>
+        <button class="btn btn-gold btn-lg" onclick="copyWhatsapp('chag')">
+          📱 העתק לוואטסאפ
+        </button>
+        <button class="btn btn-primary btn-lg" onclick="sendChag('both')">
           🚀 שלח הכל
         </button>
       </div>
@@ -1477,7 +1583,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-08-30.7';
+var APP_VERSION = '2026-09-09.1';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -1509,6 +1615,7 @@ function switchTab(tab) {
   if (tab === 'history') renderHistory();
   if (tab === 'members') renderMembers();
   if (tab === 'hh') renderHH();
+  if (tab === 'chag') initChagTab();
   if (tab === 'dashboard') updateDashboard();
   if (tab === 'shabbat' && !STATE.zmanim) {
     // טען זמנים אוטומטית בכניסה ראשונה לטאב
@@ -1752,7 +1859,7 @@ async function sendCustom(channel) {
 }
 
 async function doSend(channel, subject, msg, type) {
-  const alertId = type === 'שבת' ? 'shabbat' : 'custom';
+  const alertId = type === 'שבת' ? 'shabbat' : type === 'חג' ? 'chag' : 'custom';
   const webhook = STATE.settings.webhook;
 
   if (channel === 'email' || channel === 'both') {
@@ -1786,12 +1893,13 @@ async function doSend(channel, subject, msg, type) {
 
 // ===== COPY WHATSAPP =====
 function copyWhatsapp(source) {
-  const msg = source === 'shabbat'
-    ? document.getElementById('shabbat-message')?.value
-    : document.getElementById('custom-message')?.value;
+  const srcId = source === 'shabbat' ? 'shabbat-message'
+              : source === 'chag' ? 'chag-message'
+              : 'custom-message';
+  const msg = document.getElementById(srcId)?.value;
   if (!msg) return;
   copyToClipboard(msg);
-  const alertId = source === 'shabbat' ? 'shabbat' : 'custom';
+  const alertId = source === 'shabbat' ? 'shabbat' : source === 'chag' ? 'chag' : 'custom';
   showAlert(alertId, '📱 הטקסט הועתק ללוח! פתח וואטסאפ Web והדבק בקבוצה.', 'success');
 }
 
@@ -1996,6 +2104,428 @@ function showModeToast(isProd) {
   toast.textContent = isProd ? '✅ מצב פרודקשן — שולח לרשימה המלאה' : '🔧 מצב בדיקה — שולח רק אליך';
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3000);
+}
+
+
+// ============================================================
+//  ===== CHAG / HOLIDAY ENGINE =====
+//  בונה הודעת חג שלמה, כולל רצף ימים צמודים לשבת.
+//  כל הזמנים מחושבים באותה שיטה של הבקאנד:
+//  Hebcal + elevation=900&ue=on, שקיעה פחות דקה.
+// ============================================================
+var CHAG = { blocks: [], current: null, loading: false };
+
+function chagYmd(d) {
+  return d.getFullYear() + '-' +
+         String(d.getMonth() + 1).padStart(2, '0') + '-' +
+         String(d.getDate()).padStart(2, '0');
+}
+function chagParse(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+function chagAddDays(d, n) { var x = new Date(d.getTime()); x.setDate(x.getDate() + n); return x; }
+
+function chagWeekday(d) {
+  try { return new Intl.DateTimeFormat('he-IL', { weekday: 'long' }).format(d); }
+  catch (e) { return ['יום ראשון','יום שני','יום שלישי','יום רביעי','יום חמישי','יום שישי','שבת'][d.getDay()]; }
+}
+// תאריך עברי באותיות — חודש מהדפדפן, היום בגימטריה (ICU לא תמיד מספק אותיות)
+function chagHebDate(d) {
+  try {
+    var month = new Intl.DateTimeFormat('he-u-ca-hebrew', { month: 'long' }).format(d);
+    var num = parseInt(new Intl.DateTimeFormat('en-u-ca-hebrew', { day: 'numeric' })
+                .format(d).replace(/[^0-9]/g, ''), 10);
+    if (!num || isNaN(num) || !month) return '';
+    return chagGematria(num) + ' \u05D1' + month;
+  } catch (e) { return ''; }
+}
+// מספר לגימטריה — לשנה עברית (5787 => תשפ"ז)
+function chagGematria(n) {
+  n = n % 1000;
+  var hun = ['', '\u05E7', '\u05E8', '\u05E9', '\u05EA', '\u05EA\u05E7', '\u05EA\u05E8', '\u05EA\u05E9', '\u05EA\u05EA', '\u05EA\u05EA\u05E7'];
+  var ten = ['', '\u05D9', '\u05DB', '\u05DC', '\u05DE', '\u05E0', '\u05E1', '\u05E2', '\u05E4', '\u05E6'];
+  var one = ['', '\u05D0', '\u05D1', '\u05D2', '\u05D3', '\u05D4', '\u05D5', '\u05D6', '\u05D7', '\u05D8'];
+  var s = hun[Math.floor(n / 100)] + ten[Math.floor((n % 100) / 10)] + one[n % 10];
+  s = s.replace('\u05D9\u05D4', '\u05D8\u05D5').replace('\u05D9\u05D5', '\u05D8\u05D6');
+  if (s.length > 1) s = s.slice(0, -1) + '"' + s.slice(-1);
+  else if (s.length === 1) s = s + '\u05F3';
+  return s;
+}
+function chagHebYear(d) {
+  try {
+    var s = new Intl.DateTimeFormat('en-u-ca-hebrew', { year: 'numeric' }).format(d);
+    var n = parseInt(String(s).replace(/[^0-9]/g, ''), 10);
+    if (!n || isNaN(n)) return '';
+    return chagGematria(n);
+  } catch (e) { return ''; }
+}
+function chagGreg(d) { return d.getDate() + '.' + (d.getMonth() + 1); }
+
+// הגדרות החג — משלב את הגדרות השבת הכלליות עם שדות הטאב
+function chagSettings() {
+  var s = STATE.settings;
+  var candEl = document.getElementById('chag-candles');
+  var shacEl = document.getElementById('chag-shacharit');
+  var cand = candEl && candEl.value !== '' ? parseInt(candEl.value, 10) : (s.chagCandles != null ? +s.chagCandles : 20);
+  var shac = (shacEl && shacEl.value) || s.chagShacharit || '08:00';
+  return {
+    mincha: +s.mincha || 20,
+    maariv: +s.maariv || 35,
+    minchaChag: +s.minchaShab || 40,
+    motzash: +s.motzash || 10,
+    candles: isNaN(cand) ? 20 : cand,
+    shacharit: shac
+  };
+}
+function chagSaveSettings(s) {
+  STATE.settings.chagCandles = s.candles;
+  STATE.settings.chagShacharit = s.shacharit;
+  localStorage.setItem('msg_settings', JSON.stringify(STATE.settings));
+}
+
+// ===== טעינת רשימת החגים (Hebcal, לוח ארץ ישראל) =====
+async function initChagTab() {
+  var shacEl = document.getElementById('chag-shacharit');
+  var candEl = document.getElementById('chag-candles');
+  if (shacEl && STATE.settings.chagShacharit) shacEl.value = STATE.settings.chagShacharit;
+  if (candEl && STATE.settings.chagCandles != null) candEl.value = STATE.settings.chagCandles;
+  if (CHAG.blocks.length || CHAG.loading) return;
+  await loadChagList();
+}
+
+async function loadChagList() {
+  var sel = document.getElementById('chag-select');
+  if (!sel) return;
+  CHAG.loading = true;
+  sel.innerHTML = '<option value="">טוען רשימת חגים...</option>';
+  try {
+    var today = new Date();
+    var start = chagYmd(chagAddDays(today, -2));
+    var end   = chagYmd(chagAddDays(today, 400));
+    // i=on — לוח ארץ ישראל. בלעדיו יופיעו ימי יו"ט שני של גלויות.
+    var url = 'https://www.hebcal.com/hebcal?v=1&cfg=json&maj=on&min=off&mod=off&nx=off'
+            + '&ss=off&mf=off&c=off&geo=none&m=0&s=off&i=on&lg=h'
+            + '&start=' + start + '&end=' + end;
+    var data = await (await fetch(url)).json();
+    var items = (data.items || []).filter(function (i) {
+      return i.category === 'holiday' && i.yomtov === true && i.date;
+    });
+
+    // מפה של תאריכי יו"ט
+    var byDate = {};
+    items.forEach(function (i) {
+      var d = String(i.date).substring(0, 10);
+      if (!byDate[d]) byDate[d] = i;
+    });
+    var dates = Object.keys(byDate).sort();
+
+    // קיבוץ לרצפים (ימי יו"ט עוקבים)
+    var blocks = [];
+    dates.forEach(function (ds) {
+      var last = blocks.length ? blocks[blocks.length - 1] : null;
+      if (last && chagYmd(chagAddDays(chagParse(last.dates[last.dates.length - 1]), 1)) === ds) {
+        last.dates.push(ds);
+      } else {
+        blocks.push({ dates: [ds], item: byDate[ds] });
+      }
+    });
+
+    // הרחבת הרצף לשבת צמודה (לפני או אחרי)
+    blocks.forEach(function (b) {
+      b.ytDates = b.dates.slice();
+      var first = chagParse(b.dates[0]);
+      var beforeD = chagAddDays(first, -1);
+      if (beforeD.getDay() === 6) b.dates.unshift(chagYmd(beforeD));
+      var lastD = chagParse(b.dates[b.dates.length - 1]);
+      var afterD = chagAddDays(lastD, 1);
+      if (afterD.getDay() === 6) b.dates.push(chagYmd(afterD));
+
+      var hb = (b.item.hebrew || b.item.title || '').trim();
+      hb = hb.replace(/\s+(יום\s+)?[א-ת]['\u05F3\u05F4"]\s*$/, '').trim();
+      var yr = chagHebYear(chagParse(b.ytDates[0]));
+      b.name = hb.replace(/\s*תש[\u0590-\u05FF"\u05F4'\u05F3]+\s*$/, '').trim() || hb;
+      b.title = b.name + (yr ? ' ' + yr : '');
+      b.erev = chagYmd(chagAddDays(chagParse(b.dates[0]), -1));
+    });
+
+    CHAG.blocks = blocks;
+    if (!blocks.length) {
+      sel.innerHTML = '<option value="">לא נמצאו חגים בשנה הקרובה</option>';
+      CHAG.loading = false;
+      return;
+    }
+
+    sel.innerHTML = blocks.map(function (b, idx) {
+      var d1 = chagParse(b.dates[0]), d2 = chagParse(b.dates[b.dates.length - 1]);
+      var gspan = d1.getMonth() === d2.getMonth()
+        ? d1.getDate() + '\u2013' + chagGreg(d2)
+        : chagGreg(d1) + '\u2013' + chagGreg(d2);
+      var span = b.dates.length > 1
+        ? chagWeekday(d1).replace('יום ', '') + '\u2013' + chagWeekday(d2).replace('יום ', '') + ', ' + gspan
+        : chagWeekday(d1).replace('יום ', '') + ', ' + chagGreg(d1);
+      var tag = b.dates.length > b.ytDates.length ? ' + שבת' : '';
+      return '<option value="' + idx + '">' + escHtml(b.title) + ' — ' + escHtml(span + tag) + '</option>';
+    }).join('');
+    sel.value = '0';
+    onChagSelect();
+  } catch (e) {
+    sel.innerHTML = '<option value="">שגיאה בטעינת רשימת החגים</option>';
+    showAlert('chag', 'שגיאה בטעינת רשימת החגים: ' + e.message, 'error');
+  }
+  CHAG.loading = false;
+}
+
+function onChagSelect() {
+  var sel = document.getElementById('chag-select');
+  var box = document.getElementById('chag-range');
+  if (!sel || !box) return;
+  var b = CHAG.blocks[+sel.value];
+  if (!b) { box.textContent = ''; return; }
+  var erev = chagParse(b.erev);
+  var lines = ['🕯 ' + chagWeekday(erev) + ' ' + chagGreg(erev) + ' — ערב ' + b.name];
+  b.dates.forEach(function (ds) {
+    var d = chagParse(ds);
+    var isYT = b.ytDates.indexOf(ds) !== -1;
+    lines.push('• ' + chagWeekday(d) + ' ' + chagGreg(d) + ' — ' + (isYT ? b.name : 'שבת'));
+  });
+  if (b.dates.length > 1) lines.push('רצף של ' + b.dates.length + ' ימים');
+  box.innerHTML = lines.map(escHtml).join('<br>');
+}
+
+// ===== זמנים ליום בודד — זהה לשיטת הבקאנד =====
+async function chagDayZmanim(dateStr) {
+  var url = 'https://www.hebcal.com/zmanim?cfg=json&latitude=31.6219&longitude=35.1469'
+          + '&tzid=Asia/Jerusalem&date=' + dateStr + '&sec=1&elevation=900&ue=on';
+  var data = await (await fetch(url)).json();
+  var t = data.times || {};
+  return {
+    date: dateStr,
+    shkia: subMins(parseTimeStr(t.sunset), 1),
+    tzet: parseTimeStr(t.tzeit85deg || t.nightfall),
+    ksh: parseTimeStr(t.sofZmanShma),
+    hanetz: parseTimeStr(t.sunrise)
+  };
+}
+
+// ===== בניית ההודעה =====
+async function buildChag() {
+  var btn = document.getElementById('chag-build-btn') || (typeof event !== 'undefined' && event ? event.currentTarget : null);
+  var sel = document.getElementById('chag-select');
+  var b = CHAG.blocks[+(sel && sel.value)];
+  if (!b) { showAlert('chag', 'יש לבחור חג מהרשימה', 'error'); return; }
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="loading"></span> מחשב...'; }
+
+  try {
+    var s = chagSettings();
+    chagSaveSettings(s);
+
+    var allDates = [b.erev].concat(b.dates);
+    var z = await Promise.all(allDates.map(chagDayZmanim));
+    var zmap = {}; z.forEach(function (x) { zmap[x.date] = x; });
+
+    var days = [];
+    // ערב החג
+    var ed = chagParse(b.erev);
+    days.push({
+      kind: 'erev', date: b.erev, d: ed, z: zmap[b.erev],
+      isShabbat: ed.getDay() === 6, isYT: false
+    });
+    // ימי הרצף
+    b.dates.forEach(function (ds) {
+      var d = chagParse(ds);
+      days.push({
+        kind: 'day', date: ds, d: d, z: zmap[ds],
+        isShabbat: d.getDay() === 6,
+        isYT: b.ytDates.indexOf(ds) !== -1
+      });
+    });
+
+    CHAG.current = { block: b, days: days, s: s };
+    renderChagZmanim();
+    var txt = buildChagText();
+    var ta = document.getElementById('chag-message');
+    if (ta) { ta.value = txt; updateChagPreview(); }
+    showAlert('chag', '✅ הזמנים חושבו. יש לעבור על ההודעה לפני שליחה.', 'success');
+  } catch (e) {
+    showAlert('chag', 'שגיאה בחישוב הזמנים: ' + e.message, 'error');
+  }
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '🔄 חשב זמנים ובנה הודעה'; }
+}
+
+// תווית היום ברצף
+function chagDayLabel(c, i) {
+  var b = c.block, day = c.days[i];
+  if (day.kind === 'erev') {
+    var t = 'ערב ' + b.name;
+    if (c.days[1] && c.days[1].isShabbat && c.days[1].isYT) t = 'ערב שבת ו' + t;
+    else if (c.days[1] && c.days[1].isShabbat) t = 'ערב שבת';
+    return t;
+  }
+  if (!day.isYT) return 'שבת';
+  var ytIdx = b.ytDates.indexOf(day.date);
+  var base = b.ytDates.length > 1
+    ? 'יום ' + ['א\u05F3','ב\u05F3','ג\u05F3'][ytIdx] + ' ד' + b.name
+    : b.name;
+  return day.isShabbat ? 'שבת — ' + base : base;
+}
+
+// שם הלילה — לתוויות "ערבית ליל ..."
+function chagNightName(c, i) {
+  var b = c.block, day = c.days[i];
+  if (!day) return b.name;
+  if (day.isShabbat && day.isYT) return '\u05E9\u05D1\u05EA \u05D5\u05D7\u05D2';
+  if (day.isShabbat) return '\u05E9\u05D1\u05EA';
+  var ytIdx = b.ytDates.indexOf(day.date);
+  if (ytIdx > -1 && b.ytDates.length > 1) return '\u05D9\u05D5\u05DD ' + ['\u05D0\u05F3','\u05D1\u05F3','\u05D2\u05F3'][ytIdx] + ' \u05D3' + b.name;
+  return b.name;
+}
+
+function buildChagText() {
+  var c = CHAG.current;
+  if (!c) return '';
+  var b = c.block, s = c.s, days = c.days;
+  var isYK = /כיפור/.test(b.name);
+  var isRH = /ראש השנה/.test(b.name);
+  var note = (document.getElementById('chag-note') || {}).value || '';
+  var hasShabbatInBlock = days.some(function (d) { return d.kind === 'day' && d.isShabbat; });
+  // עירוב תבשילין — יו"ט שחל בערב שבת
+  var needEruv = days.some(function (d, i) {
+    var nx = days[i + 1];
+    return d.kind === 'day' && d.isYT && !d.isShabbat && nx && nx.isShabbat;
+  });
+
+  var L = [];
+  L.push('זמני תפילות ל' + b.title);
+  if (note) L.push(note);
+  L.push('בית כנסת הרמח"ל מיצד');
+  L.push('----------------------------');
+
+  days.forEach(function (day, i) {
+    var z = day.z, nx = days[i + 1], prev = days[i - 1];
+    var label = chagDayLabel(c, i);
+    L.push('');
+    L.push('=== ' + chagWeekday(day.d) + ' ' + chagGreg(day.d)
+           + (chagHebDate(day.d) ? ', ' + chagHebDate(day.d) : '')
+           + ' | ' + label + ' ===');
+
+    if (day.kind === 'erev') {
+      if (isYK) {
+        L.push('מנחה: [שעה]');
+        L.push('הדלקת נרות ותחילת הצום: ' + subMins(z.shkia, s.candles)
+               + ' (' + s.candles + ' דק\' לפני השקיעה)');
+        L.push('שקיעה: ' + z.shkia);
+        L.push('כל נדרי: [שעה]');
+      } else {
+        L.push('מנחה' + (nx && nx.isShabbat ? ' וקבלת שבת' : '') + ': '
+               + subMins(z.shkia, s.mincha) + ' (' + s.mincha + ' דק\' לפני השקיעה)');
+        L.push('הדלקת נרות: ' + subMins(z.shkia, s.candles)
+               + ' (' + s.candles + ' דק\' לפני השקיעה)');
+        L.push('שקיעה: ' + z.shkia);
+        L.push('ערבית ליל ' + chagNightName(c, i + 1) + ': '
+               + addMins(z.shkia, s.maariv) + ' (' + s.maariv + ' דק\' אחרי השקיעה)');
+      }
+      if (needEruv) L.push('~ יש להניח עירוב תבשילין לפני כניסת החג ~');
+      return;
+    }
+
+    // ימי החג / שבת
+    L.push('שחרית: ' + s.shacharit);
+    L.push('סוף זמן ק"ש (גר"א): ' + z.ksh);
+
+    if (isYK && day.isYT) {
+      L.push('מנחה: [שעה]');
+      L.push('נעילה: [שעה]');
+      L.push('שקיעה: ' + z.shkia);
+      L.push('צאת הצום: ' + z.tzet);
+      L.push('ערבית מוצאי הצום: ' + addMins(z.tzet, s.motzash)
+             + ' (' + s.motzash + ' דק\' אחרי צאת הצום)');
+      return;
+    }
+
+    L.push('מנחה: ' + subMins(z.shkia, s.minchaChag)
+           + ' (' + s.minchaChag + ' דק\' לפני השקיעה)');
+    L.push('שקיעה: ' + z.shkia);
+
+    if (nx) {
+      // עוד יום ברצף
+      var nextLabel = chagNightName(c, i + 1);
+      if (nx.isYT && (day.isShabbat || day.isYT)) {
+        // כניסה ליו"ט ממוצאי שבת / יו"ט — הכל אחרי צאת הכוכבים, מאש קיימת
+        var exitName = day.isShabbat ? 'צאת השבת' : 'צאת החג';
+        L.push(exitName + ': ' + z.tzet);
+        L.push('ערבית ליל ' + nextLabel + ': ' + addMins(z.tzet, s.motzash)
+               + ' (' + s.motzash + ' דק\' אחרי ' + exitName + ')');
+        L.push('הדלקת נרות ליום טוב: ' + z.tzet + ' (' + exitName + ', מאש קיימת בלבד)');
+      } else {
+        // יו"ט שנכנסת אליו שבת
+        L.push('הדלקת נרות: ' + subMins(z.shkia, s.candles)
+               + ' (' + s.candles + ' דק\' לפני השקיעה, מאש קיימת בלבד)');
+        L.push('ערבית ליל ' + nextLabel + ': ' + addMins(z.shkia, s.maariv)
+               + ' (' + s.maariv + ' דק\' אחרי השקיעה)');
+      }
+    } else {
+      var outName = (day.isShabbat && !day.isYT) ? 'צאת השבת'
+                  : (day.isShabbat && day.isYT) ? 'צאת השבת והחג' : 'צאת החג';
+      var motzName = (day.isShabbat && day.isYT) ? 'שבת וחג'
+                   : (day.isShabbat && !day.isYT) ? 'שבת' : 'החג';
+      L.push(outName + ': ' + z.tzet);
+      L.push('ערבית מוצאי ' + motzName + ': '
+             + addMins(z.tzet, s.motzash) + ' (' + s.motzash + ' דק\' אחרי ' + outName + ')');
+    }
+
+    if (isRH && day.isShabbat && day.isYT) {
+      L.push('~ יום א\u05F3 דראש השנה חל בשבת — אין תקיעת שופר ~');
+    }
+  });
+
+  L.push('----------------------------');
+  if (isRH) L.push('שנה טובה ומבורכת — כתיבה וחתימה טובה!');
+  else if (isYK) L.push('גמר חתימה טובה!');
+  else if (hasShabbatInBlock) L.push('שבת שלום וחג שמח!');
+  else L.push('חג שמח ומועדים לשמחה!');
+
+  return L.join('\n');
+}
+
+function renderChagZmanim() {
+  var c = CHAG.current;
+  var box = document.getElementById('chag-zmanim');
+  if (!c || !box) return;
+  var html = c.days.map(function (day, i) {
+    var z = day.z;
+    var rows = [
+      { name: 'שקיעה', time: z.shkia },
+      { name: 'צאת הכוכבים', time: z.tzet },
+      { name: 'סוף זמן ק"ש (גר"א)', time: z.ksh }
+    ];
+    return '<div class="chag-day-head">' + escHtml(chagWeekday(day.d) + ' ' + chagGreg(day.d) + ' — ' + chagDayLabel(c, i)) + '</div>'
+      + rows.map(function (r) {
+          return '<div class="zman-row"><div><div class="zman-name">' + r.name + '</div></div>'
+               + '<div class="zman-time">' + r.time + '</div></div>';
+        }).join('');
+  }).join('');
+  box.innerHTML = html;
+}
+
+function updateChagPreview() {
+  var msg = (document.getElementById('chag-message') || {}).value || '';
+  var pv = document.getElementById('chag-preview');
+  if (pv) pv.textContent = msg || 'ההודעה תופיע כאן...';
+}
+
+async function sendChag(channel) {
+  var msg = (document.getElementById('chag-message') || {}).value;
+  if (!msg || msg.trim() === '') { showAlert('chag', 'יש לחשב זמנים תחילה', 'error'); return; }
+  if (/\[שעה\]/.test(msg)) {
+    if (!confirm('בהודעה נותרו שדות [שעה] שלא מולאו. לשלוח בכל זאת?')) return;
+  }
+  var title = CHAG.current ? CHAG.current.block.title : 'חג';
+  var subject = 'זמני תפילות ל' + title + ' | בית כנסת הרמח"ל מיצד';
+  if (STATE.settings.confirmSend) {
+    var ch = channel === 'both' ? 'מייל ווואטסאפ' : channel === 'email' ? 'מייל' : 'וואטסאפ';
+    if (!confirm('לשלוח ב' + ch + '?')) return;
+  }
+  await doSend(channel, subject, msg, 'חג');
 }
 
 // ===== ZMANIM FOR CUSTOM MESSAGE =====
