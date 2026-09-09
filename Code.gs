@@ -128,11 +128,22 @@ function buildPlainMessage(z, parasha) {
   return msg;
 }
 
+// ==================== תמונות הבלאנק כקבצים מוטמעים ====================
+// Gmail חוסם <img src="data:image/jpeg;base64,...">, ולכן הלוגו והפוטר לא הוצגו.
+// הפתרון הנתמך: להעביר את התמונות ב-inlineImages ולהפנות אליהן ב-src="cid:...".
+function blankInlineImages() {
+  return {
+    ramchalTop: Utilities.newBlob(Utilities.base64Decode(TOP_B64), 'image/jpeg', 'ramchal-top.jpg'),
+    ramchalBot: Utilities.newBlob(Utilities.base64Decode(BOT_B64), 'image/jpeg', 'ramchal-bot.jpg')
+  };
+}
+
 // ==================== שליחת מייל ====================
 function sendEmail(plainMsg, parasha, z) {
   const subject = `${CONFIG.EMAIL_SUBJECT_PREFIX} ${parasha} | ${CONFIG.SHUL_NAME}`;
   GmailApp.sendEmail(CONFIG.EMAIL_TO, subject, plainMsg, {
     htmlBody: buildHtmlEmail(z, parasha),
+    inlineImages: blankInlineImages(),
     name: CONFIG.SHUL_NAME,
   });
   Logger.log("📧 מייל נשלח ל: " + CONFIG.EMAIL_TO);
@@ -404,6 +415,7 @@ function doGet(e) {
 
       GmailApp.sendEmail(emailTo, finalSubject, body, {
         htmlBody: htmlBody,
+        inlineImages: blankInlineImages(),
         name: CONFIG.SHUL_NAME,
       });
 
@@ -548,7 +560,7 @@ function buildBlankPage(innerContent) {
     + '<table class="wrap" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#ffffff;box-shadow:0 6px 24px rgba(0,0,0,0.18);">'
     // חלק עליון - לוגו
     + '<tr><td style="padding:0;margin:0;line-height:1;">'
-    +   '<img src="data:image/jpeg;base64,' + TOP_B64 + '" width="600" alt="בית מדרש הרמח\'\'ל מיצד" style="display:block;width:100%;height:auto;border:0;outline:none;text-decoration:none;">'
+    +   '<img src="cid:ramchalTop" width="600" alt="בית מדרש הרמח\'\'ל מיצד" style="display:block;width:100%;height:auto;border:0;outline:none;text-decoration:none;">'
     + '</td></tr>'
     // אמצע - תוכן על רקע לבן (נמתח)
     + '<tr><td class="content" style="background:#ffffff;padding:8px 30px 16px 30px;direction:rtl;">'
@@ -556,7 +568,7 @@ function buildBlankPage(innerContent) {
     + '</td></tr>'
     // חלק תחתון - פוטר
     + '<tr><td style="padding:0;margin:0;line-height:1;">'
-    +   '<img src="data:image/jpeg;base64,' + BOT_B64 + '" width="600" alt="בית מדרש הרמח\'\'ל קהילת קודש מיצד" style="display:block;width:100%;height:auto;border:0;outline:none;text-decoration:none;">'
+    +   '<img src="cid:ramchalBot" width="600" alt="בית מדרש הרמח\'\'ל קהילת קודש מיצד" style="display:block;width:100%;height:auto;border:0;outline:none;text-decoration:none;">'
     + '</td></tr>'
     + '</table>'
     + '</td></tr></table></body></html>';
