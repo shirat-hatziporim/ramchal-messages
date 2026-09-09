@@ -1583,7 +1583,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-09.2';
+var APP_VERSION = '2026-09-09.3';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2241,7 +2241,11 @@ async function loadChagList() {
       var hb = (b.item.hebrew || b.item.title || '').trim();
       hb = hb.replace(/\s+(יום\s+)?[א-ת]['\u05F3\u05F4"]\s*$/, '').trim();
       var yr = chagHebYear(chagParse(b.ytDates[0]));
-      b.name = hb.replace(/\s*תש[\u0590-\u05FF"\u05F4'\u05F3]+\s*$/, '').trim() || hb;
+      // Hebcal מחזיר לעיתים את שנת המניין בשם ("ראש השנה 5787") — מסירים ספרות ושנה עברית
+      var clean = hb.replace(/\s*\d{3,5}\s*/g, ' ')
+                    .replace(/\s*תש[\u0590-\u05FF"\u05F4'\u05F3]+\s*$/, '')
+                    .replace(/\s+/g, ' ').trim();
+      b.name = clean || hb;
       b.title = b.name + (yr ? ' ' + yr : '');
       b.erev = chagYmd(chagAddDays(chagParse(b.dates[0]), -1));
     });
@@ -2287,7 +2291,7 @@ function onChagSelect() {
     lines.push('• ' + chagWeekday(d) + ' ' + chagGreg(d) + ' — ' + (isYT ? b.name : 'שבת'));
   });
   if (b.dates.length > 1) lines.push('רצף של ' + b.dates.length + ' ימים');
-  var tpl = CHAG_TEMPLATES[b.name];
+  var tpl = chagTemplateFor(b.name);
   if (tpl) {
     lines.push('✓ תבנית מודעה רשמית קיימת לחג הזה');
     var shacEl = document.getElementById('chag-shacharit');
@@ -2409,6 +2413,7 @@ function chagRound(t, step) {
 
 function chagTplRoshHashana(c) {
   var b = c.block, s = c.s, days = c.days, cfg = CHAG_TEMPLATES['ראש השנה'];
+  if (!b.name) b.name = 'ראש השנה';
   var note = (document.getElementById('chag-note') || {}).value || '';
   var L = [];
 
@@ -2493,10 +2498,21 @@ function chagNightName(c, i) {
   return b.name;
 }
 
+// מאתר תבנית לפי שם החג, גם אם Hebcal הוסיף לו סיומת
+function chagTemplateFor(name) {
+  if (!name) return null;
+  if (CHAG_TEMPLATES[name]) return CHAG_TEMPLATES[name];
+  var keys = Object.keys(CHAG_TEMPLATES);
+  for (var i = 0; i < keys.length; i++) {
+    if (name.indexOf(keys[i]) === 0) return CHAG_TEMPLATES[keys[i]];
+  }
+  return null;
+}
+
 function buildChagText() {
   var c = CHAG.current;
   if (!c) return '';
-  var tpl = CHAG_TEMPLATES[c.block.name];
+  var tpl = chagTemplateFor(c.block.name);
   if (tpl && tpl.build) return tpl.build(c);
   var b = c.block, s = c.s, days = c.days;
   var isYK = /כיפור/.test(b.name);
