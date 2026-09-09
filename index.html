@@ -1035,6 +1035,15 @@
       </div>
     </div>
 
+    <!-- היסטוריית שליחות לחג -->
+    <div class="card" id="chag-history-card" style="display:none;">
+      <div class="card-title">
+        <div class="icon">🗂️</div>
+        הודעות קודמות לחג זה
+      </div>
+      <div id="chag-history-list"></div>
+    </div>
+
     <!-- עריכת הודעה -->
     <div class="card">
       <div class="card-title">
@@ -1586,7 +1595,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-09.7';
+var APP_VERSION = '2026-09-09.8';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2301,6 +2310,7 @@ function onChagSelect() {
     if (shacEl && tpl.shacharit) shacEl.value = tpl.shacharit;
   }
   box.innerHTML = lines.map(escHtml).join('<br>');
+  renderChagHistory();
 }
 
 // ===== זמנים ליום בודד — זהה לשיטת הבקאנד =====
@@ -2360,6 +2370,7 @@ async function buildChag() {
     var txt = buildChagText();
     var ta = document.getElementById('chag-message');
     if (ta) { ta.value = txt; updateChagPreview(); }
+    renderChagHistory();
     showAlert('chag', '✅ הזמנים חושבו. יש לעבור על ההודעה לפני שליחה.', 'success');
   } catch (e) {
     showAlert('chag', 'שגיאה בחישוב הזמנים: ' + e.message, 'error');
@@ -2711,6 +2722,67 @@ function renderChagZmanim() {
       + row('סוף זמן ק"ש (גר"א)', z.ksh);
   }).join('');
   box.innerHTML = html;
+}
+
+// ===== היסטוריית שליחות לחג הנבחר =====
+// מסננת מההיסטוריה הכללית לפי שם החג — כולל הודעות שנשלחו בעבר מהטאב החופשי.
+function chagHistoryFor(name) {
+  if (!name) return [];
+  return (STATE.history || []).filter(function (h) {
+    var hay = (h.subject || '') + ' ' + (h.msg || '');
+    return hay.indexOf(name) > -1;
+  }).slice(0, 15);
+}
+
+function renderChagHistory() {
+  var card = document.getElementById('chag-history-card');
+  var box = document.getElementById('chag-history-list');
+  var sel = document.getElementById('chag-select');
+  if (!card || !box || !sel) return;
+  var b = CHAG.blocks[+sel.value];
+  if (!b) { card.style.display = 'none'; return; }
+
+  card.style.display = 'block';
+  var list = chagHistoryFor(b.name);
+  if (!list.length) {
+    box.innerHTML = '<div style="color:var(--gray-mid);font-size:13px;padding:6px 0;line-height:1.6;">'
+      + 'אין עדיין הודעות שמורות ל' + escHtml(b.name) + '. '
+      + 'כל הודעה שתשלח מכאן תישמר בהיסטוריה ותופיע ברשימה בשנים הבאות.</div>';
+    return;
+  }
+  box.innerHTML = list.map(function (h) {
+    var id = String(h.id).replace(/'/g, '');
+    return '<div class="zman-row">'
+      + '<div><div class="zman-name">' + escHtml(h.subject || 'ללא נושא') + '</div>'
+      + '<div class="zman-note">' + escHtml(h.date || '') + '</div></div>'
+      + '<div style="display:flex;gap:6px;white-space:nowrap;">'
+      + '<button class="btn btn-outline btn-sm" onclick="chagViewHistory(\'' + id + '\')">צפייה</button>'
+      + '<button class="btn btn-primary btn-sm" onclick="chagLoadHistory(\'' + id + '\')">טען</button>'
+      + '</div></div>';
+  }).join('');
+}
+
+function chagHistoryEntry(id) {
+  var found = null;
+  (STATE.history || []).forEach(function (h) {
+    if (String(h.id) === String(id)) found = h;
+  });
+  return found;
+}
+
+function chagViewHistory(id) {
+  var h = chagHistoryEntry(id);
+  if (h) showModal(h.subject || 'הודעה שמורה', h.msg || '');
+}
+
+function chagLoadHistory(id) {
+  var h = chagHistoryEntry(id);
+  if (!h) return;
+  var ta = document.getElementById('chag-message');
+  if (!ta) return;
+  ta.value = h.msg || '';
+  updateChagPreview();
+  showAlert('chag', 'ההודעה נטענה לעורך. ⚠ הזמנים הם של השליחה הקודמת — יש לעדכן אותם לשנה הנוכחית.', 'success');
 }
 
 function updateChagPreview() {
