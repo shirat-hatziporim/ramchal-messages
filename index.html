@@ -1056,6 +1056,7 @@
           <div class="form-group">
             <label>טקסט ההודעה (לוואטסאפ ומייל)</label>
             <textarea id="chag-message" oninput="updateChagPreview()" placeholder="ההודעה תיבנה כאן לאחר החישוב..."></textarea>
+            <div id="chag-draft-status" class="chag-hint" style="margin-top:-6px;"></div>
           </div>
         </div>
         <div>
@@ -1069,6 +1070,9 @@
       <div id="chag-alert" class="alert"></div>
 
       <div class="btn-group">
+        <button class="btn btn-outline btn-lg" onclick="chagSaveDraft()">
+          💾 שמור טיוטה
+        </button>
         <button class="btn btn-success btn-lg" onclick="sendChag('email')">
           📧 שלח מייל
         </button>
@@ -1595,7 +1599,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-09.8';
+var APP_VERSION = '2026-09-09.9';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2125,7 +2129,7 @@ function showModeToast(isProd) {
 //  כל הזמנים מחושבים באותה שיטה של הבקאנד:
 //  Hebcal + elevation=900&ue=on, שקיעה פחות דקה.
 // ============================================================
-var CHAG = { blocks: [], current: null, loading: false };
+var CHAG = { blocks: [], current: null, loading: false, lastGenerated: null, _draftTimer: null };
 
 function chagYmd(d) {
   return d.getFullYear() + '-' +
@@ -2311,6 +2315,16 @@ function onChagSelect() {
   }
   box.innerHTML = lines.map(escHtml).join('<br>');
   renderChagHistory();
+
+  // טעינת הטיוטה השמורה של החג שנבחר (אם יש)
+  var ta = document.getElementById('chag-message');
+  var dr = chagLoadDraft();
+  if (ta) {
+    ta.value = dr ? dr.t : '';
+    CHAG.lastGenerated = null;
+    updateChagPreview();
+  }
+  chagDraftStatus();
 }
 
 // ===== זמנים ליום בודד — זהה לשיטת הבקאנד =====
@@ -2334,6 +2348,10 @@ async function buildChag() {
   var sel = document.getElementById('chag-select');
   var b = CHAG.blocks[+(sel && sel.value)];
   if (!b) { showAlert('chag', 'יש לבחור חג מהרשימה', 'error'); return; }
+
+  // אזהרה לפני דריסת עריכה ידנית שטרם נשלחה
+  if (chagIsEdited() &&
+      !confirm('ערכת את ההודעה ידנית. לבנות אותה מחדש? העריכה תידרס.')) return;
 
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="loading"></span> מחשב...'; }
 
@@ -2367,9 +2385,7 @@ async function buildChag() {
 
     CHAG.current = { block: b, days: days, s: s };
     renderChagZmanim();
-    var txt = buildChagText();
-    var ta = document.getElementById('chag-message');
-    if (ta) { ta.value = txt; updateChagPreview(); }
+    chagSetGenerated(buildChagText());
     renderChagHistory();
     showAlert('chag', '✅ הזמנים חושבו. יש לעבור על ההודעה לפני שליחה.', 'success');
   } catch (e) {
@@ -2669,8 +2685,10 @@ function chagRefreshAfterOv() {
   if (!c) return;
   chagApplyOv(c.days);
   renderChagZmanim();
-  var ta = document.getElementById('chag-message');
-  if (ta) { ta.value = buildChagText(); updateChagPreview(); }
+  // אם ההודעה נערכה ידנית — לא דורסים בלי אישור
+  if (chagIsEdited() &&
+      !confirm('ערכת את ההודעה ידנית. לעדכן אותה לפי הזמנים החדשים? העריכה תידרס.')) return;
+  chagSetGenerated(buildChagText());
 }
 
 // עריכת השקיעה של יום אחד — משפיעה על אותו יום בלבד
@@ -2785,10 +2803,82 @@ function chagLoadHistory(id) {
   showAlert('chag', 'ההודעה נטענה לעורך. ⚠ הזמנים הם של השליחה הקודמת — יש לעדכן אותם לשנה הנוכחית.', 'success');
 }
 
+// ===== טיוטות — שמירה אוטומטית של עריכות שטרם נשלחו =====
+// המפתח הוא תאריך היום הראשון של החג, ולכן לכל חג (ולכל שנה) יש טיוטה נפרדת.
+function chagDraftKey() {
+  var b = null;
+  if (CHAG.current && CHAG.current.block) b = CHAG.current.block;
+  else {
+    var sel = document.getElementById('chag-select');
+    if (sel) b = CHAG.blocks[+sel.value];
+  }
+  return (b && b.ytDates && b.ytDates.length) ? b.ytDates[0] : '';
+}
+function chagDrafts() {
+  try { return JSON.parse(localStorage.getItem('chag_drafts') || '{}') || {}; }
+  catch (e) { return {}; }
+}
+function chagLoadDraft() {
+  var k = chagDraftKey();
+  return k ? (chagDrafts()[k] || null) : null;
+}
+function chagSaveDraft(explicit) {
+  var key = chagDraftKey();
+  var ta = document.getElementById('chag-message');
+  if (!key || !ta) return;
+  var d = chagDrafts();
+  if (!ta.value.trim()) delete d[key];
+  else d[key] = { t: ta.value, at: new Date().toLocaleString('he-IL') };
+  // ניקוי טיוטות של חגים שעברו מזמן
+  Object.keys(d).forEach(function (k) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(k) &&
+        (Date.now() - chagParse(k).getTime()) / 86400000 > 400) delete d[k];
+  });
+  try { localStorage.setItem('chag_drafts', JSON.stringify(d)); } catch (e) {}
+  chagDraftStatus();
+  if (explicit === true) showAlert('chag', '💾 הטיוטה נשמרה. היא תיטען אוטומטית בפעם הבאה.', 'success');
+}
+function chagDeleteDraft() {
+  var key = chagDraftKey();
+  if (!key) return;
+  if (!confirm('למחוק את הטיוטה השמורה לחג זה?')) return;
+  var d = chagDrafts();
+  delete d[key];
+  try { localStorage.setItem('chag_drafts', JSON.stringify(d)); } catch (e) {}
+  chagDraftStatus();
+  showAlert('chag', 'הטיוטה נמחקה.', 'success');
+}
+function chagDraftStatus() {
+  var el = document.getElementById('chag-draft-status');
+  if (!el) return;
+  var dr = chagLoadDraft();
+  el.innerHTML = dr
+    ? '💾 טיוטה שמורה — ' + escHtml(dr.at)
+      + ' · <a href="#" onclick="chagDeleteDraft();return false;">מחיקה</a>'
+    : '';
+}
+// האם הטקסט שבעורך נערך ידנית מאז הבנייה האחרונה?
+function chagIsEdited() {
+  var ta = document.getElementById('chag-message');
+  if (!ta || !ta.value.trim()) return false;
+  return ta.value !== CHAG.lastGenerated;
+}
+// כותב טקסט שנבנה אוטומטית ושומר אותו כטיוטה
+function chagSetGenerated(txt) {
+  var ta = document.getElementById('chag-message');
+  if (!ta) return;
+  ta.value = txt;
+  CHAG.lastGenerated = txt;
+  updateChagPreview();
+  chagSaveDraft(false);
+}
+
 function updateChagPreview() {
   var msg = (document.getElementById('chag-message') || {}).value || '';
   var pv = document.getElementById('chag-preview');
   if (pv) pv.textContent = msg || 'ההודעה תופיע כאן...';
+  clearTimeout(CHAG._draftTimer);
+  CHAG._draftTimer = setTimeout(function () { chagSaveDraft(false); }, 700);
 }
 
 async function sendChag(channel) {
