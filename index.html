@@ -1583,7 +1583,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-09.4';
+var APP_VERSION = '2026-09-09.5';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2391,13 +2391,13 @@ var CHAG_TEMPLATES = {
     shacharit: '07:30',      // שחרית — שעה קבועה
     hamelech: '08:00',       // "המלך"
     shofar: '10:30',         // תקיעת שופר משוער
-    nigunim: 18,             // ניגונים — דק' אחרי השקיעה (ליל א' בלבד)
+    musaf: '10:30',          // מוסף משוער — ביום שחל בשבת (במקום תקיעת שופר)
+    nigunim: 20,             // ניגונים — דק' אחרי השקיעה (ליל א' בלבד)
     maariv: 30,              // מעריב ליל החג — דק' אחרי השקיעה
     mincha: 40,              // מנחה של יום החג — דק' לפני השקיעה
-    round: 5,                // עיגול מנחת החג כלפי מטה לכפולת 5 דק'
     notes: [
-      'תקיעות לנשים בבית הכנסת 20 דקות לאחר סיום מוסף',
-      'מספר המקומות מוגבל, יש להירשם מראש'
+      'תקיעות לנשים ביום ב\' בבית הכנסת חצי שעה לאחר סיום מוסף',
+      'יש להירשם מראש. נא לא לשבת במקומות המסומנים'
     ],
     greeting: 'שנה טובה ומבורכת — כתיבה וחתימה טובה!',
     build: function (c) { return chagTplRoshHashana(c); }
@@ -2433,20 +2433,17 @@ function chagTplRoshHashana(c) {
       ? ['א\u05F3', 'ב\u05F3', 'ג\u05F3'][k] + ' ד' + b.name
       : b.name;
 
-    L.push('');
+    if (k === 0) L.push('');
     L.push('=== ' + (day.isShabbat ? 'שבת' : chagWeekday(day.d)) + ' ' + ord + ' ===');
 
     // ----- ליל החג (הערב שנכנס אל היום הזה) -----
     if (prev) {
       var pz = prev.z;
       if (prev.isShabbat) {
-        // מוצאי שבת שנכנסת ליו"ט — הכל אחרי צאת השבת
-        L.push('שקיעה: ' + pz.shkia);
-        L.push('צאת השבת: ' + pz.tzet);
+        // מוצאי שבת שנכנסת ליו"ט — מעריב אחרי צאת השבת.
+        // השקיעה כבר הודפסה בסוף היום הקודם.
         L.push('מעריב: ' + addMins(pz.tzet, s.motzash));
-        L.push('~ הדלקת נרות ליום טוב לאחר צאת השבת, מאש קיימת בלבד ~');
       } else if (prev.isYT) {
-        L.push('שקיעה: ' + pz.shkia);
         L.push('מעריב: ' + addMins(pz.shkia, cfg.maariv));
       } else {
         L.push('מנחה' + (day.isShabbat ? ' וקבלת שבת' : '') + ': ' + subMins(pz.shkia, s.mincha));
@@ -2460,14 +2457,15 @@ function chagTplRoshHashana(c) {
     L.push('שחרית: ' + s.shacharit);
     L.push('המלך: ' + cfg.hamelech);
     L.push('קידוש');
-    if (day.isShabbat) L.push('~ ' + ord + ' חל בשבת — אין תקיעת שופר ~');
+    // ביום שחל בשבת אין תקיעת שופר — במקומה מופיע זמן מוסף
+    if (day.isShabbat) L.push('מוסף משוער: ' + cfg.musaf);
     else L.push('תקיעת שופר משוער: ' + cfg.shofar);
 
     // ----- מנחה של היום -----
     var toShabbat = nx && !nx.isYT && nx.d.getDay() === 6;
     var mincha = toShabbat
       ? subMins(day.z.shkia, s.mincha)
-      : chagRound(subMins(day.z.shkia, cfg.mincha), cfg.round);
+      : subMins(day.z.shkia, cfg.mincha);
     L.push('מנחה' + (toShabbat ? ' וקבלת שבת' : '') + ': ' + mincha);
     if (k === tashlich) L.push('תשליך לאחר מנחה');
 
@@ -2475,8 +2473,10 @@ function chagTplRoshHashana(c) {
     if (toShabbat) {
       L.push('זמני תפילות שבת כרגיל');
     } else if (!nx) {
-      L.push('צאת החג: ' + day.z.tzet);
-      L.push('מעריב מוצאי החג: ' + addMins(day.z.tzet, s.motzash));
+      L.push('מעריב בצאת החג: ' + day.z.tzet);
+    } else {
+      // השקיעה של היום — לפני כניסת היום הבא
+      L.push('שקיעה: ' + day.z.shkia);
     }
   });
 
