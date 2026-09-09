@@ -1583,7 +1583,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-09.1';
+var APP_VERSION = '2026-09-09.2';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2287,6 +2287,12 @@ function onChagSelect() {
     lines.push('• ' + chagWeekday(d) + ' ' + chagGreg(d) + ' — ' + (isYT ? b.name : 'שבת'));
   });
   if (b.dates.length > 1) lines.push('רצף של ' + b.dates.length + ' ימים');
+  var tpl = CHAG_TEMPLATES[b.name];
+  if (tpl) {
+    lines.push('✓ תבנית מודעה רשמית קיימת לחג הזה');
+    var shacEl = document.getElementById('chag-shacharit');
+    if (shacEl && tpl.shacharit) shacEl.value = tpl.shacharit;
+  }
   box.innerHTML = lines.map(escHtml).join('<br>');
 }
 
@@ -2369,6 +2375,113 @@ function chagDayLabel(c, i) {
   return day.isShabbat ? 'שבת — ' + base : base;
 }
 
+
+// ============================================================
+//  ===== תבניות חג ייעודיות =====
+//  כל תבנית משחזרת את המודעה הרשמית של אותו חג, עם זמנים
+//  מחושבים לשנה הנוכחית. חג שאין לו תבנית מקבל את המבנה הגנרי.
+//  מבנה המודעה: כל "יום" מתחיל מהערב שלפניו (יום עברי).
+// ============================================================
+var CHAG_TEMPLATES = {
+  'ראש השנה': {
+    shacharit: '07:30',      // שחרית — שעה קבועה
+    hamelech: '08:00',       // "המלך"
+    shofar: '10:30',         // תקיעת שופר משוער
+    nigunim: 18,             // ניגונים — דק' אחרי השקיעה (ליל א' בלבד)
+    maariv: 30,              // מעריב ליל החג — דק' אחרי השקיעה
+    mincha: 40,              // מנחה של יום החג — דק' לפני השקיעה
+    round: 5,                // עיגול מנחת החג כלפי מטה לכפולת 5 דק'
+    notes: [
+      'תקיעות לנשים בבית הכנסת 20 דקות לאחר סיום מוסף',
+      'מספר המקומות מוגבל, יש להירשם מראש'
+    ],
+    greeting: 'שנה טובה ומבורכת — כתיבה וחתימה טובה!',
+    build: function (c) { return chagTplRoshHashana(c); }
+  }
+};
+
+// עיגול שעה כלפי מטה לכפולת step דקות
+function chagRound(t, step) {
+  if (!step || !t || t === '--:--') return t;
+  var m = Math.floor(toMinutes(t) / step) * step;
+  return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+}
+
+function chagTplRoshHashana(c) {
+  var b = c.block, s = c.s, days = c.days, cfg = CHAG_TEMPLATES['ראש השנה'];
+  var note = (document.getElementById('chag-note') || {}).value || '';
+  var L = [];
+
+  L.push('זמני תפילות ' + b.title);
+  if (note) L.push(note);
+  L.push('בית כנסת הרמח"ל מיצד');
+  L.push('----------------------------');
+
+  var ytDays = days.filter(function (d) { return d.kind === 'day' && d.isYT; });
+  // תשליך — ביום א', ואם יום א' חל בשבת הוא נדחה ליום ב'
+  var tashlich = (ytDays.length && ytDays[0].isShabbat) ? Math.min(1, ytDays.length - 1) : 0;
+
+  ytDays.forEach(function (day, k) {
+    var idx = days.indexOf(day);
+    var prev = days[idx - 1], nx = days[idx + 1];
+    var ord = ytDays.length > 1
+      ? ['א\u05F3', 'ב\u05F3', 'ג\u05F3'][k] + ' ד' + b.name
+      : b.name;
+
+    L.push('');
+    L.push('=== ' + (day.isShabbat ? 'שבת' : chagWeekday(day.d)) + ' ' + ord
+           + ' | ' + chagGreg(day.d) + ' ===');
+
+    // ----- ליל החג (הערב שנכנס אל היום הזה) -----
+    if (prev) {
+      var pz = prev.z;
+      if (prev.isShabbat) {
+        // מוצאי שבת שנכנסת ליו"ט — הכל אחרי צאת השבת
+        L.push('שקיעה: ' + pz.shkia);
+        L.push('צאת השבת: ' + pz.tzet);
+        L.push('מעריב: ' + addMins(pz.tzet, s.motzash));
+        L.push('~ הדלקת נרות ליום טוב לאחר צאת השבת, מאש קיימת בלבד ~');
+      } else if (prev.isYT) {
+        L.push('שקיעה: ' + pz.shkia);
+        L.push('מעריב: ' + addMins(pz.shkia, cfg.maariv));
+      } else {
+        L.push('מנחה' + (day.isShabbat ? ' וקבלת שבת' : '') + ': ' + subMins(pz.shkia, s.mincha));
+        L.push('שקיעה: ' + pz.shkia);
+        if (k === 0) L.push('ניגונים: ' + addMins(pz.shkia, cfg.nigunim));
+        L.push('מעריב: ' + addMins(pz.shkia, cfg.maariv));
+      }
+    }
+
+    // ----- יום החג -----
+    L.push('שחרית: ' + s.shacharit);
+    L.push('המלך: ' + cfg.hamelech);
+    L.push('קידוש');
+    if (day.isShabbat) L.push('~ ' + ord + ' חל בשבת — אין תקיעת שופר ~');
+    else L.push('תקיעת שופר משוער: ' + cfg.shofar);
+
+    // ----- מנחה של היום -----
+    var toShabbat = nx && !nx.isYT && nx.d.getDay() === 6;
+    var mincha = toShabbat
+      ? subMins(day.z.shkia, s.mincha)
+      : chagRound(subMins(day.z.shkia, cfg.mincha), cfg.round);
+    L.push('מנחה' + (toShabbat ? ' וקבלת שבת' : '') + ': ' + mincha);
+    if (k === tashlich) L.push('תשליך לאחר מנחה');
+
+    // ----- סיום -----
+    if (toShabbat) {
+      L.push('זמני תפילות שבת כרגיל');
+    } else if (!nx) {
+      L.push('צאת החג: ' + day.z.tzet);
+      L.push('מעריב מוצאי החג: ' + addMins(day.z.tzet, s.motzash));
+    }
+  });
+
+  (cfg.notes || []).forEach(function (n) { L.push(''); L.push('~ ' + n + ' ~'); });
+  L.push('----------------------------');
+  L.push(cfg.greeting);
+  return L.join('\n');
+}
+
 // שם הלילה — לתוויות "ערבית ליל ..."
 function chagNightName(c, i) {
   var b = c.block, day = c.days[i];
@@ -2383,6 +2496,8 @@ function chagNightName(c, i) {
 function buildChagText() {
   var c = CHAG.current;
   if (!c) return '';
+  var tpl = CHAG_TEMPLATES[c.block.name];
+  if (tpl && tpl.build) return tpl.build(c);
   var b = c.block, s = c.s, days = c.days;
   var isYK = /כיפור/.test(b.name);
   var isRH = /ראש השנה/.test(b.name);
@@ -2395,7 +2510,7 @@ function buildChagText() {
   });
 
   var L = [];
-  L.push('זמני תפילות ל' + b.title);
+  L.push('זמני תפילות ' + b.title);
   if (note) L.push(note);
   L.push('בית כנסת הרמח"ל מיצד');
   L.push('----------------------------');
@@ -2520,7 +2635,7 @@ async function sendChag(channel) {
     if (!confirm('בהודעה נותרו שדות [שעה] שלא מולאו. לשלוח בכל זאת?')) return;
   }
   var title = CHAG.current ? CHAG.current.block.title : 'חג';
-  var subject = 'זמני תפילות ל' + title + ' | בית כנסת הרמח"ל מיצד';
+  var subject = 'זמני תפילות ' + title + ' | בית כנסת הרמח"ל מיצד';
   if (STATE.settings.confirmSend) {
     var ch = channel === 'both' ? 'מייל ווואטסאפ' : channel === 'email' ? 'מייל' : 'וואטסאפ';
     if (!confirm('לשלוח ב' + ch + '?')) return;
