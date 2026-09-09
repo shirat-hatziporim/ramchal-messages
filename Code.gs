@@ -305,6 +305,10 @@ function doGet(e) {
     var _membersRes = handleMembersAction(e, output);
     if (_membersRes) return _membersRes;
 
+    // ניתוב סנכרון טאב החגים (getChag, saveChag, deleteChag)
+    var _chagRes = handleChagAction(e, output);
+    if (_chagRes) return _chagRes;
+
     if (action === 'getData') {
       var data = syncGetData();
       var json = JSON.stringify({ ok: true, data: data });
@@ -562,6 +566,89 @@ function buildBlankPage(innerContent) {
     + '</td></tr></table></body></html>';
 }
 
+
+// ==================== סנכרון טאב החגים ====================
+// לשונית `chag` בגיליון מחזיקה שתי משפחות מפתחות:
+//   draft:<תאריך>  — טיוטת הודעת החג שטרם נשלחה
+//   shkia:<תאריך>  — תיקון שקיעה ידני לאותו יום (לוח מיצד)
+// המיזוג הוא "החדש מנצח" לפי חותמת הזמן, ולכן אפשר לערוך ממחשב ומנייד.
+function getChagSheet() {
+  var ss = getOrCreateSyncSheet();
+  var sh = ss.getSheetByName('chag');
+  if (!sh) {
+    sh = ss.insertSheet('chag');
+    sh.appendRow(['key', 'value', 'updated']);
+  }
+  return sh;
+}
+
+function chagGetAll() {
+  var sh = getChagSheet();
+  var d = sh.getDataRange().getValues();
+  var out = [];
+  for (var i = 1; i < d.length; i++) {
+    if (d[i][0]) out.push({
+      key: String(d[i][0]),
+      value: String(d[i][1]),
+      updated: Number(d[i][2]) || 0
+    });
+  }
+  return out;
+}
+
+function chagUpsert(key, value, updated) {
+  if (!key) return;
+  var sh = getChagSheet();
+  var d = sh.getDataRange().getValues();
+  for (var i = 1; i < d.length; i++) {
+    if (String(d[i][0]) === String(key)) {
+      sh.getRange(i + 1, 1, 1, 3).setValues([[key, value, updated]]);
+      return;
+    }
+  }
+  sh.appendRow([key, value, updated]);
+}
+
+function chagDeleteKey(key) {
+  if (!key) return;
+  var sh = getChagSheet();
+  var d = sh.getDataRange().getValues();
+  for (var i = d.length - 1; i >= 1; i--) {
+    if (String(d[i][0]) === String(key)) sh.deleteRow(i + 1);
+  }
+}
+
+// ראוטר — מחזיר null אם ה-action אינו שלו
+function handleChagAction(e, output) {
+  var action = e.parameter.action || '';
+
+  if (action === 'getChag') {
+    var json = JSON.stringify({ ok: true, data: chagGetAll() });
+    var cb = e.parameter.callback;
+    if (cb) {
+      output.setMimeType(ContentService.MimeType.JAVASCRIPT);
+      output.setContent(cb + '(' + json + ')');
+    } else {
+      output.setContent(json);
+    }
+    return output;
+  }
+
+  if (action === 'saveChag') {
+    chagUpsert(e.parameter.key || '', e.parameter.value || '',
+               Number(e.parameter.updated) || (new Date()).getTime());
+    output.setContent(JSON.stringify({ ok: true }));
+    return output;
+  }
+
+  if (action === 'deleteChag') {
+    chagDeleteKey(e.parameter.key || '');
+    output.setContent(JSON.stringify({ ok: true }));
+    return output;
+  }
+
+  return null;
+}
 
 // ==================== גיבוי שבועי של הגיליון ====================
 // RamchalSync מחזיק היסטוריה, תבניות, מתפללים, כרטיסי חוב ורישומי ימים נוראים.
