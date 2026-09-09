@@ -1599,7 +1599,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-09.9';
+var APP_VERSION = '2026-09-10.1';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2203,6 +2203,7 @@ async function initChagTab() {
   var candEl = document.getElementById('chag-candles');
   if (shacEl && STATE.settings.chagShacharit) shacEl.value = STATE.settings.chagShacharit;
   if (candEl && STATE.settings.chagCandles != null) candEl.value = STATE.settings.chagCandles;
+  setTimeout(chagSyncLoad, 400);
   if (CHAG.blocks.length || CHAG.loading) return;
   await loadChagList();
 }
@@ -2662,12 +2663,21 @@ function chagSaveOverrides(o) {
 
 // מחיל את התיקון של כל יום על השקיעה ועל צאת הכוכבים שלו בלבד.
 // סוף זמן ק"ש והנץ אינם מושפעים — הם זמני בוקר.
+// ערך תיקון עשוי להיות מחרוזת (פורמט ישן) או {v,u} (עם חותמת זמן לסנכרון)
+function chagOvVal(entry) {
+  if (!entry) return '';
+  return (typeof entry === 'string') ? entry : (entry.v || '');
+}
+function chagOvTime(entry) {
+  return (entry && typeof entry === 'object' && entry.u) ? entry.u : 0;
+}
+
 function chagApplyOv(days) {
   var ov = chagOverrides();
   days.forEach(function (d) {
     if (!d.zRaw) return;
     var delta = 0;
-    var v = ov[d.date];
+    var v = chagOvVal(ov[d.date]);
     if (v && /^\d{1,2}:\d{2}$/.test(v)) delta = toMinutes(v) - toMinutes(d.zRaw.shkia);
     d.adj = delta;
     d.z = {
@@ -2696,8 +2706,14 @@ function chagShkiaOverride(dateStr, val) {
   var c = CHAG.current;
   if (!c) return;
   var ov = chagOverrides();
-  if (val && /^\d{1,2}:\d{2}$/.test(val)) ov[dateStr] = val;
-  else delete ov[dateStr];
+  var now = Date.now();
+  if (val && /^\d{1,2}:\d{2}$/.test(val)) {
+    ov[dateStr] = { v: val, u: now };
+    chagPush('shkia:' + dateStr, val, now);
+  } else {
+    delete ov[dateStr];
+    chagPush('shkia:' + dateStr, '', now, true);
+  }
   chagSaveOverrides(ov);
   chagRefreshAfterOv();
   showAlert('chag', 'השקיעה עודכנה ליום זה בלבד. שאר הימים לא השתנו.', 'success');
@@ -2803,6 +2819,102 @@ function chagLoadHistory(id) {
   showAlert('chag', 'ההודעה נטענה לעורך. ⚠ הזמנים הם של השליחה הקודמת — יש לעדכן אותם לשנה הנוכחית.', 'success');
 }
 
+// ===== סנכרון טאב החגים מול הגיליון =====
+// טיוטות ותיקוני שקיעה נשמרים גם בלשונית `chag` ב-RamchalSync,
+// כדי שעריכה מהנייד תופיע במחשב ולהפך. המיזוג: החדש מנצח.
+function chagPush(key, value, updated, isDelete) {
+  var webhook = STATE.settings.webhook;
+  if (!webhook) return;
+  var qs = isDelete
+    ? '?action=deleteChag&key=' + encodeURIComponent(key)
+    : '?action=saveChag&key=' + encodeURIComponent(key)
+      + '&value=' + encodeURIComponent(value)
+      + '&updated=' + updated;
+  try { fetch(webhook + qs, { mode: 'no-cors' }); } catch (e) {}
+}
+
+function chagSyncLoad() {
+  var webhook = STATE.settings.webhook;
+  if (!webhook) return;
+  var cb = 'chagSyncCb' + Date.now();
+  window[cb] = function (res) {
+    try {
+      if (res && res.ok && res.data) chagSyncMerge(res.data);
+    } catch (e) {}
+    try { delete window[cb]; } catch (e2) {}
+    var s = document.getElementById(cb);
+    if (s) s.remove();
+  };
+  var script = document.createElement('script');
+  script.id = cb;
+  script.src = webhook + '?action=getChag&callback=' + cb;
+  script.onerror = function () { try { delete window[cb]; } catch (e) {} script.remove(); };
+  document.body.appendChild(script);
+}
+
+function chagSyncMerge(rows) {
+  var drafts = chagDrafts();
+  var ov = chagOverrides();
+  var srv = {};
+  var touched = false;
+
+  (rows || []).forEach(function (r) {
+    if (!r || !r.key) return;
+    srv[r.key] = r;
+    var i = r.key.indexOf(':');
+    if (i < 0) return;
+    var kind = r.key.substring(0, i), k = r.key.substring(i + 1);
+    var up = Number(r.updated) || 0;
+
+    if (kind === 'draft') {
+      var loc = drafts[k];
+      if (r.value && (!loc || up > (loc.u || 0))) {
+        drafts[k] = { t: r.value, at: new Date(up || Date.now()).toLocaleString('he-IL'), u: up };
+        touched = true;
+      }
+    } else if (kind === 'shkia') {
+      var lo = ov[k];
+      if (r.value && (!lo || up > chagOvTime(lo))) {
+        ov[k] = { v: r.value, u: up };
+        touched = true;
+      }
+    }
+  });
+
+  // מה שמקומי וחדש יותר (או שאינו קיים בשרת) — נדחף החוצה
+  Object.keys(drafts).forEach(function (k) {
+    var r = srv['draft:' + k];
+    if (!r || (drafts[k].u || 0) > (Number(r.updated) || 0)) {
+      chagPush('draft:' + k, drafts[k].t, drafts[k].u || Date.now());
+    }
+  });
+  Object.keys(ov).forEach(function (k) {
+    var r = srv['shkia:' + k];
+    var v = chagOvVal(ov[k]);
+    if (v && (!r || chagOvTime(ov[k]) > (Number(r.updated) || 0))) {
+      chagPush('shkia:' + k, v, chagOvTime(ov[k]) || Date.now());
+    }
+  });
+
+  if (!touched) return;
+  try {
+    localStorage.setItem('chag_drafts', JSON.stringify(drafts));
+    localStorage.setItem('chag_shkia_ov', JSON.stringify(ov));
+  } catch (e) {}
+
+  // רענון התצוגה עם מה שהגיע מהשרת — בלי לדרוס עריכה פתוחה
+  if (CHAG.current) { chagApplyOv(CHAG.current.days); renderChagZmanim(); }
+  chagDraftStatus();
+  var ta = document.getElementById('chag-message');
+  var dr = chagLoadDraft();
+  if (ta && dr && !chagIsEdited() && ta.value !== dr.t) {
+    ta.value = dr.t;
+    CHAG.lastGenerated = null;
+    updateChagPreview();
+    showAlert('chag', '🔄 נטענה טיוטה מעודכנת יותר מהגיליון.', 'success');
+  }
+}
+
 // ===== טיוטות — שמירה אוטומטית של עריכות שטרם נשלחו =====
 // המפתח הוא תאריך היום הראשון של החג, ולכן לכל חג (ולכל שנה) יש טיוטה נפרדת.
 function chagDraftKey() {
@@ -2827,8 +2939,15 @@ function chagSaveDraft(explicit) {
   var ta = document.getElementById('chag-message');
   if (!key || !ta) return;
   var d = chagDrafts();
-  if (!ta.value.trim()) delete d[key];
-  else d[key] = { t: ta.value, at: new Date().toLocaleString('he-IL') };
+  var now = Date.now();
+  if (!ta.value.trim()) {
+    delete d[key];
+    chagPush('draft:' + key, '', now, true);
+  } else {
+    if (d[key] && d[key].t === ta.value) { chagDraftStatus(); return; }
+    d[key] = { t: ta.value, at: new Date().toLocaleString('he-IL'), u: now };
+    chagPush('draft:' + key, ta.value, now);
+  }
   // ניקוי טיוטות של חגים שעברו מזמן
   Object.keys(d).forEach(function (k) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(k) &&
@@ -2845,6 +2964,7 @@ function chagDeleteDraft() {
   var d = chagDrafts();
   delete d[key];
   try { localStorage.setItem('chag_drafts', JSON.stringify(d)); } catch (e) {}
+  chagPush('draft:' + key, '', Date.now(), true);
   chagDraftStatus();
   showAlert('chag', 'הטיוטה נמחקה.', 'success');
 }
