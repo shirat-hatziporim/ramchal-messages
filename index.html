@@ -1583,7 +1583,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-09.3';
+var APP_VERSION = '2026-09-09.4';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2434,8 +2434,7 @@ function chagTplRoshHashana(c) {
       : b.name;
 
     L.push('');
-    L.push('=== ' + (day.isShabbat ? 'שבת' : chagWeekday(day.d)) + ' ' + ord
-           + ' | ' + chagGreg(day.d) + ' ===');
+    L.push('=== ' + (day.isShabbat ? 'שבת' : chagWeekday(day.d)) + ' ' + ord + ' ===');
 
     // ----- ליל החג (הערב שנכנס אל היום הזה) -----
     if (prev) {
@@ -2535,7 +2534,7 @@ function buildChagText() {
     var z = day.z, nx = days[i + 1], prev = days[i - 1];
     var label = chagDayLabel(c, i);
     L.push('');
-    L.push('=== ' + chagWeekday(day.d) + ' ' + chagGreg(day.d)
+    L.push('=== ' + chagWeekday(day.d)
            + (chagHebDate(day.d) ? ', ' + chagHebDate(day.d) : '')
            + ' | ' + label + ' ===');
 
