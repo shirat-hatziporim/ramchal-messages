@@ -102,6 +102,9 @@
   }
 
   .chag-range { font-size:13px; color:var(--gray-mid); margin:-6px 0 12px; line-height:1.6; }
+  .chag-hint { font-size:12px; color:var(--gray-mid); line-height:1.6; margin-bottom:8px; }
+  .chag-shkia { width:96px; direction:ltr; text-align:center; font-weight:700; color:var(--navy);
+                border:1px solid var(--gold); border-radius:6px; padding:4px 6px; font-size:15px; background:#fffdf7; }
   .chag-day-head { font-size:13px; font-weight:700; color:var(--navy); background:#f5f0e8;
                    border-right:3px solid var(--gold); padding:6px 10px; margin:10px 0 2px; border-radius:4px; }
   /* ===== NAV TABS ===== */
@@ -1583,7 +1586,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-09.5';
+var APP_VERSION = '2026-09-09.6';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2336,18 +2339,21 @@ async function buildChag() {
     // ערב החג
     var ed = chagParse(b.erev);
     days.push({
-      kind: 'erev', date: b.erev, d: ed, z: zmap[b.erev],
+      kind: 'erev', date: b.erev, d: ed, z: zmap[b.erev], zRaw: zmap[b.erev],
       isShabbat: ed.getDay() === 6, isYT: false
     });
     // ימי הרצף
     b.dates.forEach(function (ds) {
       var d = chagParse(ds);
       days.push({
-        kind: 'day', date: ds, d: d, z: zmap[ds],
+        kind: 'day', date: ds, d: d, z: zmap[ds], zRaw: zmap[ds],
         isShabbat: d.getDay() === 6,
         isYT: b.ytDates.indexOf(ds) !== -1
       });
     });
+
+    // תיקון השקיעה לאופק מיצד — נשמר בין חג לחג
+    chagApplyAdj(days, +(STATE.settings.chagShkiaAdj || 0));
 
     CHAG.current = { block: b, days: days, s: s };
     renderChagZmanim();
@@ -2617,22 +2623,63 @@ function buildChagText() {
   return L.join('\n');
 }
 
+// מחיל תיקון דקות על השקיעה ועל צאת הכוכבים (סוף זמן ק"ש אינו מושפע)
+function chagApplyAdj(days, delta) {
+  delta = +delta || 0;
+  days.forEach(function (d) {
+    if (!d.zRaw) return;
+    d.z = {
+      date: d.zRaw.date,
+      shkia: addMins(d.zRaw.shkia, delta),
+      tzet: addMins(d.zRaw.tzet, delta),
+      ksh: d.zRaw.ksh,
+      hanetz: d.zRaw.hanetz
+    };
+  });
+}
+
+// עריכת השקיעה של יום כלשהו — ההפרש מוחל על כל ימי החג ונשמר להבא
+function chagShkiaOverride(dateStr, val) {
+  var c = CHAG.current;
+  if (!c || !val || !/^\d{1,2}:\d{2}$/.test(val)) return;
+  var day = null;
+  c.days.forEach(function (d) { if (d.date === dateStr) day = d; });
+  if (!day || !day.zRaw) return;
+
+  var delta = toMinutes(val) - toMinutes(day.zRaw.shkia);
+  STATE.settings.chagShkiaAdj = delta;
+  localStorage.setItem('msg_settings', JSON.stringify(STATE.settings));
+
+  chagApplyAdj(c.days, delta);
+  renderChagZmanim();
+  var ta = document.getElementById('chag-message');
+  if (ta) { ta.value = buildChagText(); updateChagPreview(); }
+  showAlert('chag', delta
+    ? 'תיקון שקיעה ' + (delta > 0 ? '+' : '') + delta + ' דק\' הוחל על כל ימי החג ונשמר.'
+    : 'תיקון השקיעה אופס.', 'success');
+}
+
 function renderChagZmanim() {
   var c = CHAG.current;
   var box = document.getElementById('chag-zmanim');
   if (!c || !box) return;
-  var html = c.days.map(function (day, i) {
+  var adj = +(STATE.settings.chagShkiaAdj || 0);
+  var html = '<div class="chag-hint">אפשר לתקן את השקיעה לאופק מיצד. ההפרש יוחל על כל ימי החג, '
+           + 'יעדכן את כל הזמנים הנגזרים, וישמר גם לחגים הבאים.'
+           + (adj ? ' <b>תיקון נוכחי: ' + (adj > 0 ? '+' : '') + adj + ' דק\'</b>' : '')
+           + '</div>';
+  html += c.days.map(function (day, i) {
     var z = day.z;
-    var rows = [
-      { name: 'שקיעה', time: z.shkia },
-      { name: 'צאת הכוכבים', time: z.tzet },
-      { name: 'סוף זמן ק"ש (גר"א)', time: z.ksh }
-    ];
+    var row = function (n, t) {
+      return '<div class="zman-row"><div><div class="zman-name">' + n + '</div></div>'
+           + '<div class="zman-time">' + t + '</div></div>';
+    };
     return '<div class="chag-day-head">' + escHtml(chagWeekday(day.d) + ' ' + chagGreg(day.d) + ' — ' + chagDayLabel(c, i)) + '</div>'
-      + rows.map(function (r) {
-          return '<div class="zman-row"><div><div class="zman-name">' + r.name + '</div></div>'
-               + '<div class="zman-time">' + r.time + '</div></div>';
-        }).join('');
+      + '<div class="zman-row"><div><div class="zman-name">שקיעה</div></div><div>'
+      + '<input type="time" class="chag-shkia" value="' + z.shkia + '" '
+      + 'onchange="chagShkiaOverride(\'' + day.date + '\', this.value)"></div></div>'
+      + row('צאת הכוכבים', z.tzet)
+      + row('סוף זמן ק"ש (גר"א)', z.ksh);
   }).join('');
   box.innerHTML = html;
 }
