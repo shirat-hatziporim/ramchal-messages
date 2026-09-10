@@ -1602,7 +1602,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-10.11';
+var APP_VERSION = '2026-09-10.12';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2910,19 +2910,26 @@ function emailWrapHtml(body, subject, width, m) {
     + emailRowsFromText(body, m)
     + '</table>';
 
-  var pad = Math.round(30 * W / 600);
+  var pad = m ? 22 : Math.round(30 * W / 600);
+  var OVER = m ? 1.10 : 1;   // מרחיב את הבלאנק וגוזר את השוליים הלבנים המובנים שלו
   return '<table cellpadding="0" cellspacing="0" border="0" '
     + 'style="width:' + W + 'px;background:#ffffff;font-family:Heebo,Arial,sans-serif;direction:rtl;">'
     + '<tr><td style="padding:0;margin:0;line-height:1;">'
-    +   '<img src="data:image/jpeg;base64,' + BLANK_TOP_B64 + '" width="' + W + '" '
-    +   'style="display:block;width:' + W + 'px;height:auto;border:0;">'
+    +   '<div style="width:' + W + 'px;overflow:hidden;line-height:1;">'
+    +   '<img src="data:image/jpeg;base64,' + BLANK_TOP_B64 + '" '
+    +   'style="display:block;width:' + Math.round(W * OVER) + 'px;height:auto;border:0;'
+    +   'margin:0 ' + Math.round(-W * (OVER - 1) / 2) + 'px;">'
+    +   '</div>'
     + '</td></tr>'
     + '<tr><td style="background:#ffffff;padding:8px ' + pad + 'px 16px ' + pad + 'px;direction:rtl;">'
     +   innerContent
     + '</td></tr>'
     + '<tr><td style="padding:0;margin:0;line-height:1;">'
-    +   '<img src="data:image/jpeg;base64,' + BLANK_BOT_B64 + '" width="' + W + '" '
-    +   'style="display:block;width:' + W + 'px;height:auto;border:0;">'
+    +   '<div style="width:' + W + 'px;overflow:hidden;line-height:1;">'
+    +   '<img src="data:image/jpeg;base64,' + BLANK_BOT_B64 + '" '
+    +   'style="display:block;width:' + Math.round(W * OVER) + 'px;height:auto;border:0;'
+    +   'margin:0 ' + Math.round(-W * (OVER - 1) / 2) + 'px;">'
+    +   '</div>'
     + '</td></tr>'
     + '</table>';
 }
@@ -2952,7 +2959,7 @@ async function chagExportPoster() {
     await loadHtml2Canvas();
     if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
 
-    var A4W = 1240, A4H = 1754, M = 18;
+    var A4W = 1240, A4H = 1754, M = 8;
     var PRINT_FS = 2.6;           // הגדלת הגופן בגרסת ההדפסה
     var subject = chagSubject();
 
@@ -2977,7 +2984,7 @@ async function chagExportPoster() {
     var textH = Math.max(120, h600 - 600 * imgRatio);
     var aspect = (A4W - 2 * M) / (A4H - 2 * M);
     var Wfit = Math.round(aspect * textH / (1 - aspect * imgRatio));
-    Wfit = Math.max(600, Math.min(1400, Wfit));
+    Wfit = Math.max(600, Math.min(1700, Wfit));
 
     // מעבר ב' — צילום ברוחב המחושב
     build(Wfit);
