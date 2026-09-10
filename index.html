@@ -1602,7 +1602,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-10.9';
+var APP_VERSION = '2026-09-10.10';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2853,7 +2853,10 @@ function loadHtml2Canvas() {
 }
 
 // ---- זהה ל-buildHtmlEmailFromText בבקאנד ----
-function emailRowsFromText(body) {
+function emailRowsFromText(body, m) {
+  // m — מכפיל גופן. 1 = זהה למייל; בהדפסה מגדילים, כי הריווח נשאר קבוע
+  // ולכן הטקסט תופס חלק גדול יותר מהדף ויוצא קריא יותר.
+  var FS = function (n) { return Math.round(n * (m || 1)); };
   var cleanBody = String(body || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   var bodyLines = cleanBody.split('\n');
   var startIdx = 0;
@@ -2871,7 +2874,7 @@ function emailRowsFromText(body) {
     if (t.length > 6 && t.substring(0, 3) === '===' && t.substring(t.length - 3) === '===') {
       var dayTitle = t.substring(3, t.length - 3).trim();
       return '<tr><td colspan="2" style="padding:12px 0 4px 0;text-align:center;">'
-        + '<span style="color:#1a3a5c;font-size:13px;font-weight:bold;">' + escHtml(dayTitle) + '</span>'
+        + '<span style="color:#1a3a5c;font-size:' + FS(13) + 'px;font-weight:bold;">' + escHtml(dayTitle) + '</span>'
         + '</td></tr>';
     }
     var timeMatch = l.match(/^(.+?):\s*(\d{1,2}:\d{2})\s*(.*)$/);
@@ -2880,30 +2883,31 @@ function emailRowsFromText(body) {
       var time = timeMatch[2];
       var note = timeMatch[3] ? escHtml(timeMatch[3].replace(/^\(|\)$/g, '')) : '';
       return '<tr>'
-        + '<td style="font-size:13px;color:#333;padding:4px 2px;direction:rtl;text-align:right;border-bottom:1px dotted #ddd;">'
+        + '<td style="font-size:' + FS(13) + 'px;color:#333;padding:4px 2px;direction:rtl;text-align:right;border-bottom:1px dotted #ddd;">'
         + label
-        + (note ? '<br><span style="font-size:10px;color:#aaa;">' + note + '</span>' : '')
+        + (note ? '<br><span style="font-size:' + FS(10) + 'px;color:#aaa;">' + note + '</span>' : '')
         + '</td>'
-        + '<td style="font-size:15px;font-weight:bold;color:#1a3a5c;text-align:center;direction:ltr;width:60px;border-bottom:1px dotted #ddd;">'
+        + '<td style="font-size:' + FS(15) + 'px;font-weight:bold;color:#1a3a5c;text-align:center;direction:ltr;width:60px;border-bottom:1px dotted #ddd;">'
         + time + '</td></tr>';
     }
     if (t.length > 4 && t.charAt(0) === '~' && t.charAt(t.length - 1) === '~') {
       var noteText = escHtml(t.substring(1, t.length - 1).trim());
-      return '<tr><td colspan="2" style="background:#f5f0e8;border-right:3px solid #c9a84c;padding:8px 12px;font-size:13px;color:#333;direction:rtl;text-align:right;">'
+      return '<tr><td colspan="2" style="background:#f5f0e8;border-right:3px solid #c9a84c;padding:8px 12px;font-size:' + FS(13) + 'px;color:#333;direction:rtl;text-align:right;">'
         + noteText + '</td></tr>';
     }
-    return '<tr><td colspan="2" style="font-size:13px;color:#555;padding:4px 2px;direction:rtl;text-align:center;font-style:italic;">' + escHtml(l) + '</td></tr>';
+    return '<tr><td colspan="2" style="font-size:' + FS(13) + 'px;color:#555;padding:4px 2px;direction:rtl;text-align:center;font-style:italic;">' + escHtml(l) + '</td></tr>';
   }).join('');
 }
 
 // ---- זהה ל-buildBlankPage, אך מחזיר רק את גוף המעטפת (600px) ----
-function emailWrapHtml(body, subject, width) {
+function emailWrapHtml(body, subject, width, m) {
   var W = width || 600;
+  var FS = function (n) { return Math.round(n * (m || 1)); };
   var innerContent = ''
-    + '<div style="font-size:16px;font-weight:bold;color:#1a3a5c;text-align:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1.5px solid #bbb;">'
+    + '<div style="font-size:' + FS(16) + 'px;font-weight:bold;color:#1a3a5c;text-align:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1.5px solid #bbb;">'
     + escHtml(subject) + '</div>'
     + '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">'
-    + emailRowsFromText(body)
+    + emailRowsFromText(body, m)
     + '</table>';
 
   var pad = Math.round(30 * W / 600);
@@ -2949,6 +2953,7 @@ async function chagExportPoster() {
     if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
 
     var A4W = 1240, A4H = 1754, M = 18;
+    var PRINT_FS = 1.55;          // הגדלת הגופן בגרסת ההדפסה
     var subject = chagSubject();
 
     function build(W) {
@@ -2957,7 +2962,7 @@ async function chagExportPoster() {
       holder.setAttribute('dir', 'rtl');
       holder.style.cssText = 'position:fixed;left:-12000px;top:0;width:' + W
                            + 'px;background:#ffffff;z-index:-1;';
-      holder.innerHTML = emailWrapHtml(text, subject, W);
+      holder.innerHTML = emailWrapHtml(text, subject, W, PRINT_FS);
       document.body.appendChild(holder);
     }
 
