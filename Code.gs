@@ -618,9 +618,44 @@ function chagDeleteKey(key) {
   }
 }
 
+// ---- מחיקת שליחות מההיסטוריה ----
+// בלי זה מחיקה מקומית חוזרת בסנכרון הבא, כי הגיליון גובר.
+function histDelete(id) {
+  if (!id) return 0;
+  var ss = getOrCreateSyncSheet();
+  var sheet = ss.getSheetByName('history');
+  if (!sheet) return 0;
+  var d = sheet.getDataRange().getValues();
+  var n = 0;
+  for (var i = d.length - 1; i >= 1; i--) {
+    if (String(d[i][0]) === String(id)) { sheet.deleteRow(i + 1); n++; }
+  }
+  return n;
+}
+
+function histClear() {
+  var ss = getOrCreateSyncSheet();
+  var sheet = ss.getSheetByName('history');
+  if (!sheet) return;
+  sheet.clearContents();
+  sheet.appendRow(['id', 'date', 'subject', 'msg', 'channel', 'type']);
+}
+
 // ראוטר — מחזיר null אם ה-action אינו שלו
 function handleChagAction(e, output) {
   var action = e.parameter.action || '';
+
+  if (action === 'deleteHistory') {
+    var removed = histDelete(e.parameter.id || '');
+    output.setContent(JSON.stringify({ ok: true, deleted: removed }));
+    return output;
+  }
+
+  if (action === 'clearHistory') {
+    histClear();
+    output.setContent(JSON.stringify({ ok: true }));
+    return output;
+  }
 
   if (action === 'getChag') {
     var json = JSON.stringify({ ok: true, data: chagGetAll() });
