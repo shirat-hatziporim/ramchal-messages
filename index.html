@@ -1602,7 +1602,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-10.2';
+var APP_VERSION = '2026-09-10.3';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2833,7 +2833,7 @@ var BLANK_BOT_B64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwc
 //  אותה שפת טקסט של המייל: === כותרת ===, "תווית: שעה (הערה)",
 //  ~ הדגשה ~, --- קו מפריד.
 // ============================================================
-var POSTER = { W: 1240, H: 1754, PAD: 78 };
+var POSTER = { W: 1240, H: 1754, PAD: 140 };
 
 function chagLoadImg(b64) {
   return new Promise(function (resolve, reject) {
@@ -2885,102 +2885,76 @@ function posterItems(text) {
   return { title: title, items: items };
 }
 
-// מצייר (או רק מודד) את התוכן. מחזיר את הגובה הכולל.
-function posterDraw(ctx, parsed, top, bottom, scale, measureOnly) {
-  var F = function (n) { return Math.round(n * scale); };
-  var x0 = POSTER.PAD, x1 = POSTER.W - POSTER.PAD;
-  var w = x1 - x0;
-  var y = top;
-  var navy = '#1a3a5c', gold = '#c9a84c', gray = '#8a8a8a', dark = '#333333';
-  var fam = ', Heebo, Arial, sans-serif';
-
-  function line(color, yy) {
-    if (measureOnly) return;
-    ctx.strokeStyle = color; ctx.lineWidth = Math.max(1, F(1.5));
-    ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(x1, yy); ctx.stroke();
+// טקסט עוטף לפי רוחב עמודה
+function posterWrap(ctx, text, maxw, font) {
+  ctx.font = font;
+  var words = String(text).split(' ');
+  var out = [], cur = '';
+  for (var i = 0; i < words.length; i++) {
+    var t = cur ? cur + ' ' + words[i] : words[i];
+    if (cur && ctx.measureText(t).width > maxw) { out.push(cur); cur = words[i]; }
+    else cur = t;
   }
+  if (cur) out.push(cur);
+  return out;
+}
 
-  // כותרת
-  if (parsed.title) {
-    y += F(18);
-    if (!measureOnly) {
-      ctx.fillStyle = navy;
-      ctx.font = 'bold ' + F(46) + 'px' + fam;
-      ctx.textAlign = 'center';
-      ctx.direction = 'rtl';
-      ctx.fillText(parsed.title, POSTER.W / 2, y + F(46));
+// מצייר (או רק מודד) את גוף המודעה. מחזיר את הגובה הכולל.
+// העיצוב: עמודת טקסט מיושרת לימין, כמו במודעה המקורית.
+function posterDraw(ctx, parsed, top, scale, measureOnly) {
+  var F = function (n) { return Math.round(n * scale); };
+  var RX = POSTER.W - POSTER.PAD;          // שוליים ימניים
+  var MAXW = Math.round(POSTER.W * 0.60);  // רוחב עמודת הטקסט
+  var y = top;
+  var navy = '#1a3a5c', dark = '#1a1a1a', gray = '#666666';
+  var fam = ' Heebo, Arial, sans-serif';
+
+  function put(text, font, color, extraLead, underline) {
+    var lines = posterWrap(ctx, text, MAXW, font);
+    var lead = F(extraLead);
+    for (var i = 0; i < lines.length; i++) {
+      if (!measureOnly) {
+        ctx.direction = 'rtl';
+        ctx.textAlign = 'right';
+        ctx.font = font;
+        ctx.fillStyle = color;
+        ctx.fillText(lines[i], RX, y + lead);
+        if (underline) {
+          var w = ctx.measureText(lines[i]).width;
+          ctx.strokeStyle = color;
+          ctx.lineWidth = Math.max(1, F(2));
+          ctx.beginPath();
+          ctx.moveTo(RX, y + lead + F(7));
+          ctx.lineTo(RX - w, y + lead + F(7));
+          ctx.stroke();
+        }
+      }
+      y += lead + F(6);
     }
-    y += F(62);
-    line('#bbbbbb', y);
-    y += F(20);
   }
 
   parsed.items.forEach(function (it) {
-    if (it.k === 'gap') { y += F(12); return; }
-    if (it.k === 'rule') { line('#dddddd', y + F(8)); y += F(20); return; }
+    if (it.k === 'rule') return;                    // המודעה המקורית ללא קווים מפרידים
+    if (it.k === 'gap') { y += F(16); return; }
 
     if (it.k === 'head') {
-      y += F(18);
-      if (!measureOnly) {
-        ctx.fillStyle = navy;
-        ctx.font = 'bold ' + F(34) + 'px' + fam;
-        ctx.textAlign = 'center'; ctx.direction = 'rtl';
-        ctx.fillText(it.text, POSTER.W / 2, y + F(34));
-      }
-      y += F(42);
+      y += F(26);
+      put(it.text, 'bold ' + F(37) + 'px' + fam, dark, 37, true);
+      y += F(10);
       return;
     }
-
     if (it.k === 'note') {
-      var h = F(50);
-      if (!measureOnly) {
-        ctx.fillStyle = '#f5f0e8';
-        ctx.fillRect(x0, y, w, h);
-        ctx.fillStyle = gold;
-        ctx.fillRect(x1 - F(6), y, F(6), h);
-        ctx.fillStyle = dark;
-        ctx.font = F(24) + 'px' + fam;
-        ctx.textAlign = 'right'; ctx.direction = 'rtl';
-        ctx.fillText(it.text, x1 - F(24), y + h / 2 + F(9));
-      }
-      y += h + F(10);
+      put('• ' + it.text, F(27) + 'px' + fam, dark, 27, false);
+      y += F(6);
       return;
     }
-
     if (it.k === 'free') {
-      if (!measureOnly) {
-        ctx.fillStyle = '#555555';
-        ctx.font = 'italic ' + F(24) + 'px' + fam;
-        ctx.textAlign = 'center'; ctx.direction = 'rtl';
-        ctx.fillText(it.text, POSTER.W / 2, y + F(26));
-      }
-      y += F(36);
+      put(it.text, F(31) + 'px' + fam, dark, 31, false);
       return;
     }
-
-    // שורת זמן
-    var rowH = it.note ? F(60) : F(46);
-    if (!measureOnly) {
-      ctx.direction = 'rtl';
-      ctx.fillStyle = dark;
-      ctx.font = F(27) + 'px' + fam;
-      ctx.textAlign = 'right';
-      ctx.fillText(it.label, x1, y + F(30));
-      if (it.note) {
-        ctx.fillStyle = gray;
-        ctx.font = F(19) + 'px' + fam;
-        ctx.fillText(it.note, x1, y + F(56));
-      }
-      ctx.fillStyle = navy;
-      ctx.font = 'bold ' + F(33) + 'px' + fam;
-      ctx.textAlign = 'left'; ctx.direction = 'ltr';
-      ctx.fillText(it.time, x0, y + F(32));
-      ctx.strokeStyle = '#dddddd'; ctx.lineWidth = 1;
-      ctx.setLineDash([2, 4]);
-      ctx.beginPath(); ctx.moveTo(x0, y + rowH - F(4)); ctx.lineTo(x1, y + rowH - F(4)); ctx.stroke();
-      ctx.setLineDash([]);
-    }
-    y += rowH;
+    // שורת זמן — "תווית: שעה" בשורה אחת, כמו במודעה
+    var txt = it.label + ': ' + it.time + (it.note ? ' (' + it.note + ')' : '');
+    put(txt, F(31) + 'px' + fam, dark, 31, false);
   });
 
   return y - top;
@@ -3007,18 +2981,36 @@ async function chagExportPoster() {
 
     var topH = Math.round(POSTER.W * (topImg.height / topImg.width));
     var botH = Math.round(POSTER.W * (botImg.height / botImg.width));
-    var areaTop = topH + 10;
-    var areaBottom = POSTER.H - botH - 20;
+    var areaTop = topH + 24;
+    var areaBottom = POSTER.H - botH - 28;
     var avail = areaBottom - areaTop;
 
     var parsed = posterItems(text);
-    var need = posterDraw(ctx, parsed, areaTop, areaBottom, 1, true);
-    var scale = need > avail ? Math.max(0.55, avail / need) : 1;
-    // אם יש מקום בשפע — מותר להגדיל מעט
-    if (need < avail * 0.8) scale = Math.min(1.15, avail / need * 0.9);
+    // מדידה עם אותו ctx (נדרש למדידת רוחב טקסט לעטיפה)
+    var need = posterDraw(ctx, parsed, areaTop, 1, true);
+    var scale = 1;
+    if (need > avail) scale = Math.max(0.55, avail / need);
+    else scale = Math.min(1.2, avail / need);
 
     ctx.drawImage(topImg, 0, 0, POSTER.W, topH);
-    posterDraw(ctx, parsed, areaTop, areaBottom, scale, false);
+
+    // הכותרת יושבת בתוך אזור הלוגו, מיושרת לימין ומודגשת — כמו במודעה
+    if (parsed.title) {
+      var tf = 'bold ' + Math.round(40 * Math.min(1.1, scale + 0.15)) + 'px Heebo, Arial, sans-serif';
+      ctx.font = tf;
+      ctx.direction = 'rtl';
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#1a1a1a';
+      var ty = Math.round(topH * 0.42);
+      var tx = POSTER.W - POSTER.PAD;
+      ctx.fillText(parsed.title, tx, ty);
+      var tw = ctx.measureText(parsed.title).width;
+      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(tx, ty + 9); ctx.lineTo(tx - tw, ty + 9); ctx.stroke();
+    }
+
+    posterDraw(ctx, parsed, areaTop, scale, false);
     ctx.drawImage(botImg, 0, POSTER.H - botH, POSTER.W, botH);
 
     var name = (parsed.title || 'מודעה').replace(/[\\/:*?"<>|]/g, '') + '.png';
