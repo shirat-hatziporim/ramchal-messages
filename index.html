@@ -1602,7 +1602,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-10.13';
+var APP_VERSION = '2026-09-10.14';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -1970,6 +1970,7 @@ function renderHistory() {
       <td><span class="badge badge-success">${h.channel === 'both' ? 'מייל + וואטסאפ' : h.channel === 'email' ? 'מייל' : 'וואטסאפ'}</span></td>
       <td>
         <button class="btn btn-outline btn-sm" onclick="viewMessage(${h.id})">צפה</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteHistoryEntry('${h.id}')">מחק</button>
       </td>
     </tr>
   `).join('');
@@ -1981,11 +1982,32 @@ function viewMessage(id) {
   showModal(entry.subject, entry.msg);
 }
 
+// מוחק שליחה בודדת — מקומית ומהגיליון, אחרת היא חוזרת בסנכרון הבא
+function deleteHistoryEntry(id) {
+  var entry = null;
+  STATE.history.forEach(function (h) { if (String(h.id) === String(id)) entry = h; });
+  if (!entry) return;
+  if (!confirm('למחוק את השליחה "' + (entry.subject || '') + '"?\nההודעה תוסר גם מהגיליון.')) return;
+
+  STATE.history = STATE.history.filter(function (h) { return String(h.id) !== String(id); });
+  localStorage.setItem('msg_history', JSON.stringify(STATE.history));
+  _mFetch('?action=deleteHistory&id=' + encodeURIComponent(id));
+
+  renderHistory();
+  if (typeof renderChagHistory === 'function') renderChagHistory();
+  updateDashboard();
+  showAlert('history', 'השליחה נמחקה.', 'success');
+  showAlert('chag', 'השליחה נמחקה מההיסטוריה ומהגיליון.', 'success');
+}
+
 function clearHistory() {
-  if (!confirm('למחוק את כל ההיסטוריה?')) return;
+  if (!confirm('למחוק את כל ההיסטוריה? הפעולה תמחק גם את הרשומות בגיליון.')) return;
   STATE.history = [];
   localStorage.removeItem('msg_history');
+  _mFetch('?action=clearHistory');
   renderHistory();
+  if (typeof renderChagHistory === 'function') renderChagHistory();
+  updateDashboard();
 }
 
 // ===== TEMPLATES =====
@@ -2795,6 +2817,7 @@ function renderChagHistory() {
       + '<div style="display:flex;gap:6px;white-space:nowrap;">'
       + '<button class="btn btn-outline btn-sm" onclick="chagViewHistory(\'' + id + '\')">צפייה</button>'
       + '<button class="btn btn-primary btn-sm" onclick="chagLoadHistory(\'' + id + '\')">טען</button>'
+      + '<button class="btn btn-danger btn-sm" onclick="deleteHistoryEntry(\'' + id + '\')">מחק</button>'
       + '</div></div>';
   }).join('');
 }
