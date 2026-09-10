@@ -1602,7 +1602,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-10.10';
+var APP_VERSION = '2026-09-10.11';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2953,7 +2953,7 @@ async function chagExportPoster() {
     if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
 
     var A4W = 1240, A4H = 1754, M = 18;
-    var PRINT_FS = 1.55;          // הגדלת הגופן בגרסת ההדפסה
+    var PRINT_FS = 2.6;           // הגדלת הגופן בגרסת ההדפסה
     var subject = chagSubject();
 
     function build(W) {
@@ -2977,7 +2977,7 @@ async function chagExportPoster() {
     var textH = Math.max(120, h600 - 600 * imgRatio);
     var aspect = (A4W - 2 * M) / (A4H - 2 * M);
     var Wfit = Math.round(aspect * textH / (1 - aspect * imgRatio));
-    Wfit = Math.max(600, Math.min(1100, Wfit));
+    Wfit = Math.max(600, Math.min(1400, Wfit));
 
     // מעבר ב' — צילום ברוחב המחושב
     build(Wfit);
