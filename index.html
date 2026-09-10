@@ -1602,7 +1602,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-10.15';
+var APP_VERSION = '2026-09-10.16';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2882,7 +2882,10 @@ function emailRowsFromText(body, m) {
   var FS = function (n) { return Math.round(n * (m || 1)); };
   // בגרסת ההדפסה: פסים מתחלפים וקו מנוקד כהה יותר, כדי לקשור שעה לתפילה
   var P = !!(m && m !== 1);
-  var dotc = P ? '#a8b0bb' : '#ddd';
+  var brd = P ? 'none' : '1px dotted #ddd';
+  var stripeBg = '#eef1f7';
+  var lblCol = P ? '#222' : '#333';
+  var subCol = P ? '#999' : '#aaa';
   var zebra = 0;
   var cleanBody = String(body || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   var bodyLines = cleanBody.split('\n');
@@ -2895,6 +2898,7 @@ function emailRowsFromText(body, m) {
       return '<tr><td colspan="2" style="border-top:1px solid #ddd;padding:3px 0;font-size:0;">&nbsp;</td></tr>';
     }
     if (l.trim() === '') {
+      if (P) return '';
       return '<tr><td colspan="2" style="padding:2px 0;font-size:5px;">&nbsp;</td></tr>';
     }
     var t = l.trim();
@@ -2911,21 +2915,26 @@ function emailRowsFromText(body, m) {
       var time = timeMatch[2];
       var note = timeMatch[3] ? escHtml(timeMatch[3].replace(/^\(|\)$/g, '')) : '';
       zebra++;
-      var bg = (P && zebra % 2 === 1) ? 'background:#eaeff6;' : '';
+      var bg = (P && zebra % 2 === 1) ? 'background:' + stripeBg + ';' : '';
+      var rpad = P ? '7px 10px' : '4px 2px';
       return '<tr>'
-        + '<td style="' + bg + 'font-size:' + FS(13) + 'px;color:#333;padding:4px 2px;direction:rtl;text-align:right;border-bottom:1px dotted ' + dotc + ';">'
+        + '<td style="' + bg + 'font-size:' + FS(13) + 'px;color:' + lblCol + ';padding:' + rpad + ';direction:rtl;text-align:right;border-bottom:' + brd + ';">'
         + label
-        + (note ? '<br><span style="font-size:' + FS(10) + 'px;color:#aaa;">' + note + '</span>' : '')
+        + (note ? '<br><span style="font-size:' + FS(10) + 'px;color:' + subCol + ';">' + note + '</span>' : '')
         + '</td>'
-        + '<td style="' + bg + 'font-size:' + FS(15) + 'px;font-weight:bold;color:#1a3a5c;text-align:center;direction:ltr;width:60px;border-bottom:1px dotted ' + dotc + ';">'
+        + '<td style="' + bg + 'font-size:' + FS(15) + 'px;font-weight:bold;color:#1a3a5c;text-align:center;direction:ltr;width:' + (P ? 110 : 60) + 'px;border-bottom:' + brd + ';">'
         + time + '</td></tr>';
     }
     if (t.length > 4 && t.charAt(0) === '~' && t.charAt(t.length - 1) === '~') {
       var noteText = escHtml(t.substring(1, t.length - 1).trim());
+      zebra++;
       return '<tr><td colspan="2" style="background:#f5f0e8;border-right:3px solid #c9a84c;padding:8px 12px;font-size:' + FS(13) + 'px;color:#333;direction:rtl;text-align:right;">'
         + noteText + '</td></tr>';
     }
-    return '<tr><td colspan="2" style="font-size:' + FS(13) + 'px;color:#555;padding:4px 2px;direction:rtl;text-align:center;font-style:italic;">' + escHtml(l) + '</td></tr>';
+    zebra++;
+    var fbg = (P && zebra % 2 === 1) ? 'background:' + stripeBg + ';' : '';
+    var fpad = P ? '7px 10px' : '4px 2px';
+    return '<tr><td colspan="2" style="' + fbg + 'font-size:' + FS(13) + 'px;color:#555;padding:' + fpad + ';direction:rtl;text-align:center;font-style:italic;">' + escHtml(l) + '</td></tr>';
   }).join('');
 }
 
