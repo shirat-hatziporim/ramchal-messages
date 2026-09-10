@@ -1602,7 +1602,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-10.4';
+var APP_VERSION = '2026-09-10.7';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2900,14 +2900,16 @@ function posterWrap(ctx, text, maxw, font) {
 }
 
 // מצייר (או רק מודד) את גוף המודעה. מחזיר את הגובה הכולל.
-// עיצוב: עמודת תוכן ימנית, כותרות יום על רצועה בהירה עם פס זהב,
-// שורות זמן בשתי עמודות עם קו מנוקד עדין, והערות בתיבת דגש.
+// עיצוב: כותרת ראשית מתחת ללוגו, עמודת תוכן ימנית, כותרות יום
+// על רצועה בהירה עם פס זהב, ושתי עמודות מיושרות — תווית מימין, שעה משמאל.
 function posterDraw(ctx, parsed, top, scale, measureOnly) {
   var F = function (n) { return Math.round(n * scale); };
   var BX1 = POSTER.W - 130;          // קצה ימני של עמודת התוכן
-  var BX0 = BX1 - 810;               // קצה שמאלי
+  var BX0 = BX1 - 790;               // קצה שמאלי
+  var TIMEX = BX0 + F(170);          // עמודת השעות — מיושרת לימין כדי שהספרות יתיישרו
   var y = top;
-  var navy = '#1a3a5c', gold = '#c9a84c', dark = '#242a33', gray = '#8d8d8d';
+  var navy = '#123453', navyDark = '#0f2c48', gold = '#c9a84c';
+  var dark = '#111827', mid = '#4b5563', gray = '#7c7c7c';
   var fam = ' Heebo, Arial, sans-serif';
 
   var last = -1;
@@ -2928,29 +2930,29 @@ function posterDraw(ctx, parsed, top, scale, measureOnly) {
 
   parsed.items.forEach(function (it, idx) {
     if (it.k === 'rule') return;
-    if (it.k === 'gap') { y += F(10); return; }
+    if (it.k === 'gap') { y += F(14); return; }
 
     // ---------- כותרת יום ----------
     if (it.k === 'head') {
-      y += F(20);
-      var hh = F(52);
-      rect(BX0, BX1 - BX0, hh, '#eef2f6');
-      rect(BX1 - F(7), F(7), hh, gold);
-      text(it.text, 'bold ' + F(35) + 'px' + fam, navy, 'right', BX1 - F(26), y + hh / 2 + F(12));
-      y += hh + F(8);
+      y += F(18);
+      var hh = F(56);
+      rect(BX0, BX1 - BX0, hh, '#e9eef4');
+      rect(BX1 - F(8), F(8), hh, gold);
+      text(it.text, 'bold ' + F(44) + 'px' + fam, navyDark, 'right', BX1 - F(28), y + hh / 2 + F(15));
+      y += hh + F(10);
       stripe = 0;
       return;
     }
 
     // ---------- הערה מודגשת ----------
     if (it.k === 'note') {
-      var nf = F(26) + 'px' + fam;
-      var lines = posterWrap(ctx, '• ' + it.text, BX1 - BX0 - F(56), nf);
-      var nh = F(14) + lines.length * F(34);
+      var nf = F(28) + 'px' + fam;
+      var lines = posterWrap(ctx, '• ' + it.text, BX1 - BX0 - F(60), nf);
+      var nh = F(18) + lines.length * F(38);
       rect(BX0, BX1 - BX0, nh, '#f8f3e8');
-      rect(BX1 - F(6), F(6), nh, gold);
+      rect(BX1 - F(7), F(7), nh, gold);
       for (var i = 0; i < lines.length; i++) {
-        text(lines[i], nf, dark, 'right', BX1 - F(26), y + F(30) + i * F(34));
+        text(lines[i], nf, dark, 'right', BX1 - F(28), y + F(38) + i * F(38));
       }
       y += nh + F(10);
       return;
@@ -2959,42 +2961,34 @@ function posterDraw(ctx, parsed, top, scale, measureOnly) {
     // ---------- שורת טקסט חופשי ----------
     if (it.k === 'free') {
       var isEnd = (idx === last);
-      var ff = (isEnd ? 'bold ' : '') + F(isEnd ? 31 : 27) + 'px' + fam;
+      var ff = (isEnd ? 'bold ' : '') + F(isEnd ? 35 : 30) + 'px' + fam;
       if (isEnd) {
-        y += F(12);
+        y += F(16);
         if (!measureOnly) {
-          ctx.strokeStyle = gold; ctx.lineWidth = Math.max(1, F(2));
+          ctx.strokeStyle = gold; ctx.lineWidth = Math.max(1, F(3));
           ctx.beginPath();
-          ctx.moveTo((BX0 + BX1) / 2 - F(70), y); ctx.lineTo((BX0 + BX1) / 2 + F(70), y);
+          ctx.moveTo((BX0 + BX1) / 2 - F(80), y); ctx.lineTo((BX0 + BX1) / 2 + F(80), y);
           ctx.stroke();
         }
-        y += F(16);
+        y += F(20);
       }
       var fl = posterWrap(ctx, it.text, BX1 - BX0 - F(40), ff);
       for (var k = 0; k < fl.length; k++) {
-        text(fl[k], ff, isEnd ? navy : '#5b6470', 'center', (BX0 + BX1) / 2, y + F(26) + k * F(34));
+        text(fl[k], ff, isEnd ? navyDark : mid, 'center', (BX0 + BX1) / 2, y + F(30) + k * F(40));
       }
-      y += F(10) + fl.length * F(34);
+      y += F(10) + fl.length * F(40);
       return;
     }
 
     // ---------- שורת זמן ----------
-    var rowH = it.note ? F(62) : F(46);
-    if (stripe % 2 === 1) rect(BX0, BX1 - BX0, rowH, '#fbfaf7');
+    var rowH = it.note ? F(68) : F(50);
+    if (stripe % 2 === 1) rect(BX0, BX1 - BX0, rowH, '#f4f6f9');
     stripe++;
-    text(it.label, F(29) + 'px' + fam, dark, 'right', BX1 - F(26), y + F(33));
+    text(it.label, F(33) + 'px' + fam, dark, 'right', BX1 - F(28), y + F(35));
     if (it.note) {
-      text(it.note, F(20) + 'px' + fam, gray, 'right', BX1 - F(26), y + F(55));
+      text(it.note, F(22) + 'px' + fam, gray, 'right', BX1 - F(28), y + F(58));
     }
-    text(it.time, 'bold ' + F(33) + 'px' + fam, navy, 'left', BX0 + F(26), y + F(35));
-    if (!measureOnly) {
-      ctx.strokeStyle = '#e3ded2'; ctx.lineWidth = 1;
-      ctx.setLineDash([2, 5]);
-      ctx.beginPath();
-      ctx.moveTo(BX0 + F(16), y + rowH - 1); ctx.lineTo(BX1 - F(16), y + rowH - 1);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
+    text(it.time, 'bold ' + F(37) + 'px' + fam, navy, 'right', TIMEX, y + F(37));
     y += rowH;
   });
 
@@ -3020,10 +3014,19 @@ async function chagExportPoster() {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, POSTER.W, POSTER.H);
 
-    var topH = Math.round(POSTER.W * (topImg.height / topImg.width));
-    var botH = Math.round(POSTER.W * (botImg.height / botImg.width));
-    var areaTop = topH + 24;
-    var areaBottom = POSTER.H - botH - 28;
+    // ---- הלוגו והפוטר: מוגדלים מעט וכהים יותר ----
+    // הלוגו מוגדל ב-12% (השוליים הדקים של המסגרת נחתכים) והחלק התחתון
+    // הריק שלו נגזר, כדי שהלוגו יגדל בלי לגזול גובה מהתוכן.
+    var TOPK = 1.0, BOTK = 1.08;
+    var topW = Math.round(POSTER.W * TOPK);
+    var topFull = Math.round(topW * (topImg.height / topImg.width));
+    var topH = Math.min(topFull, 510);                // הגובה שנצבע בדף
+    var srcH = topImg.height * Math.min(1, topH / topFull);
+    var botW = Math.round(POSTER.W * BOTK);
+    var botH = Math.round(botW * (botImg.height / botImg.width));
+
+    var areaTop = topH + 26;
+    var areaBottom = POSTER.H - botH - 26;
     var avail = areaBottom - areaTop;
 
     var parsed = posterItems(text);
@@ -3033,25 +3036,30 @@ async function chagExportPoster() {
     if (need > avail) scale = Math.max(0.55, avail / need);
     else scale = Math.min(1.2, avail / need);
 
-    ctx.drawImage(topImg, 0, 0, POSTER.W, topH);
+    // ניגודיות: מכהה ומחדד את הבלאנק האפור
+    var oldFilter = ctx.filter;
+    try { ctx.filter = 'contrast(1.4) brightness(0.93) saturate(1.05)'; } catch (e) {}
+    ctx.drawImage(topImg, 0, 0, topImg.width, srcH,
+                  Math.round((POSTER.W - topW) / 2), 0, topW, topH);
+    ctx.drawImage(botImg, Math.round((POSTER.W - botW) / 2), POSTER.H - botH, botW, botH);
+    try { ctx.filter = oldFilter || 'none'; } catch (e) {}
 
-    // הכותרת יושבת בתוך אזור הלוגו, מיושרת לימין ומודגשת — כמו במודעה
+    // ---- הכותרת הראשית: בתוך הבלאנק, מתחת ללוגו ----
     if (parsed.title) {
-      ctx.font = 'bold ' + Math.round(44 * Math.min(1.1, scale + 0.2)) + 'px Heebo, Arial, sans-serif';
-      ctx.direction = 'rtl';
-      ctx.textAlign = 'right';
-      ctx.fillStyle = '#1a3a5c';
-      var ty = Math.round(topH * 0.40);
+      var tfs = 46;
+      ctx.font = 'bold ' + tfs + 'px Heebo, Arial, sans-serif';
+      ctx.direction = 'rtl'; ctx.textAlign = 'right';
+      ctx.fillStyle = '#0f2c48';
       var tx = POSTER.W - 130;
+      var ty = topH - 26;
       ctx.fillText(parsed.title, tx, ty);
       var tw = ctx.measureText(parsed.title).width;
-      ctx.strokeStyle = '#c9a84c'; ctx.lineWidth = 4;
+      ctx.strokeStyle = '#c9a84c'; ctx.lineWidth = 5;
       ctx.beginPath();
-      ctx.moveTo(tx, ty + 14); ctx.lineTo(tx - tw, ty + 14); ctx.stroke();
+      ctx.moveTo(tx, ty + 15); ctx.lineTo(tx - tw, ty + 15); ctx.stroke();
     }
 
     posterDraw(ctx, parsed, areaTop, scale, false);
-    ctx.drawImage(botImg, 0, POSTER.H - botH, POSTER.W, botH);
 
     var name = (parsed.title || 'מודעה').replace(/[\\/:*?"<>|]/g, '') + '.png';
     canvas.toBlob(function (blob) {
