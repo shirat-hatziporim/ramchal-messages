@@ -1602,7 +1602,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-10.14';
+var APP_VERSION = '2026-09-10.15';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2880,6 +2880,10 @@ function emailRowsFromText(body, m) {
   // m — מכפיל גופן. 1 = זהה למייל; בהדפסה מגדילים, כי הריווח נשאר קבוע
   // ולכן הטקסט תופס חלק גדול יותר מהדף ויוצא קריא יותר.
   var FS = function (n) { return Math.round(n * (m || 1)); };
+  // בגרסת ההדפסה: פסים מתחלפים וקו מנוקד כהה יותר, כדי לקשור שעה לתפילה
+  var P = !!(m && m !== 1);
+  var dotc = P ? '#a8b0bb' : '#ddd';
+  var zebra = 0;
   var cleanBody = String(body || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   var bodyLines = cleanBody.split('\n');
   var startIdx = 0;
@@ -2896,6 +2900,7 @@ function emailRowsFromText(body, m) {
     var t = l.trim();
     if (t.length > 6 && t.substring(0, 3) === '===' && t.substring(t.length - 3) === '===') {
       var dayTitle = t.substring(3, t.length - 3).trim();
+      zebra = 0;
       return '<tr><td colspan="2" style="padding:12px 0 4px 0;text-align:center;">'
         + '<span style="color:#1a3a5c;font-size:' + FS(13) + 'px;font-weight:bold;">' + escHtml(dayTitle) + '</span>'
         + '</td></tr>';
@@ -2905,12 +2910,14 @@ function emailRowsFromText(body, m) {
       var label = escHtml(timeMatch[1]);
       var time = timeMatch[2];
       var note = timeMatch[3] ? escHtml(timeMatch[3].replace(/^\(|\)$/g, '')) : '';
+      zebra++;
+      var bg = (P && zebra % 2 === 1) ? 'background:#eaeff6;' : '';
       return '<tr>'
-        + '<td style="font-size:' + FS(13) + 'px;color:#333;padding:4px 2px;direction:rtl;text-align:right;border-bottom:1px dotted #ddd;">'
+        + '<td style="' + bg + 'font-size:' + FS(13) + 'px;color:#333;padding:4px 2px;direction:rtl;text-align:right;border-bottom:1px dotted ' + dotc + ';">'
         + label
         + (note ? '<br><span style="font-size:' + FS(10) + 'px;color:#aaa;">' + note + '</span>' : '')
         + '</td>'
-        + '<td style="font-size:' + FS(15) + 'px;font-weight:bold;color:#1a3a5c;text-align:center;direction:ltr;width:60px;border-bottom:1px dotted #ddd;">'
+        + '<td style="' + bg + 'font-size:' + FS(15) + 'px;font-weight:bold;color:#1a3a5c;text-align:center;direction:ltr;width:60px;border-bottom:1px dotted ' + dotc + ';">'
         + time + '</td></tr>';
     }
     if (t.length > 4 && t.charAt(0) === '~' && t.charAt(t.length - 1) === '~') {
