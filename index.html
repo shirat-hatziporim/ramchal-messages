@@ -1602,7 +1602,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-10.7';
+var APP_VERSION = '2026-09-10.8';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2833,166 +2833,104 @@ var BLANK_BOT_B64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwc
 //  אותה שפת טקסט של המייל: === כותרת ===, "תווית: שעה (הערה)",
 //  ~ הדגשה ~, --- קו מפריד.
 // ============================================================
-var POSTER = { W: 1240, H: 1754, PAD: 140 };
+// ============================================================
+//  ===== ייצוא המודעה כתמונה =====
+//  התמונה נוצרת מאותו HTML בדיוק שנשלח במייל (מראה זהה),
+//  ומוטמעת על גבי דף A4 לבן מוכן להדפסה.
+//  הקוד כאן הוא נמל של buildHtmlEmailFromText + buildBlankPage מ-Code.gs.
+// ============================================================
+var H2C_URL = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
 
-function chagLoadImg(b64) {
+function loadHtml2Canvas() {
+  if (window.html2canvas) return Promise.resolve();
   return new Promise(function (resolve, reject) {
-    var img = new Image();
-    img.onload = function () { resolve(img); };
-    img.onerror = reject;
-    img.src = 'data:image/jpeg;base64,' + b64;
+    var s = document.createElement('script');
+    s.src = H2C_URL;
+    s.onload = function () { resolve(); };
+    s.onerror = function () { reject(new Error('לא ניתן לטעון את מנוע ההמרה לתמונה (נדרש אינטרנט)')); };
+    document.head.appendChild(s);
   });
 }
 
-// מפרק את הטקסט לפריטי ציור
-function posterItems(text) {
-  var lines = String(text || '').replace(/\r/g, '').split('\n');
-  var title = '';
-  var start = 0;
-  for (var i = 0; i < Math.min(6, lines.length); i++) {
-    if (/^[-]{3,}$/.test(lines[i].trim())) { start = i + 1; break; }
+// ---- זהה ל-buildHtmlEmailFromText בבקאנד ----
+function emailRowsFromText(body) {
+  var cleanBody = String(body || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  var bodyLines = cleanBody.split('\n');
+  var startIdx = 0;
+  for (var bi = 0; bi < Math.min(5, bodyLines.length); bi++) {
+    if (bodyLines[bi].match(/^[-]{3,}$/)) { startIdx = bi + 1; break; }
   }
-  for (var j = 0; j < start; j++) {
-    var t = lines[j].trim();
-    if (t && !/^[-]{3,}$/.test(t) && !title) title = t;
-  }
-  var items = [];
-  lines.slice(start).forEach(function (l) {
+  return bodyLines.slice(startIdx).map(function (l) {
+    if (l.match(/^[-]{3,}$/)) {
+      return '<tr><td colspan="2" style="border-top:1px solid #ddd;padding:3px 0;font-size:0;">&nbsp;</td></tr>';
+    }
+    if (l.trim() === '') {
+      return '<tr><td colspan="2" style="padding:2px 0;font-size:5px;">&nbsp;</td></tr>';
+    }
     var t = l.trim();
-    if (t === '') { items.push({ k: 'gap' }); return; }
-    if (/^[-]{3,}$/.test(t)) { items.push({ k: 'rule' }); return; }
-    if (t.length > 6 && t.substring(0, 3) === '===' && t.slice(-3) === '===') {
-      items.push({ k: 'head', text: t.substring(3, t.length - 3).trim() });
-      return;
+    if (t.length > 6 && t.substring(0, 3) === '===' && t.substring(t.length - 3) === '===') {
+      var dayTitle = t.substring(3, t.length - 3).trim();
+      return '<tr><td colspan="2" style="padding:12px 0 4px 0;text-align:center;">'
+        + '<span style="color:#1a3a5c;font-size:13px;font-weight:bold;">' + escHtml(dayTitle) + '</span>'
+        + '</td></tr>';
+    }
+    var timeMatch = l.match(/^(.+?):\s*(\d{1,2}:\d{2})\s*(.*)$/);
+    if (timeMatch) {
+      var label = escHtml(timeMatch[1]);
+      var time = timeMatch[2];
+      var note = timeMatch[3] ? escHtml(timeMatch[3].replace(/^\(|\)$/g, '')) : '';
+      return '<tr>'
+        + '<td style="font-size:13px;color:#333;padding:4px 2px;direction:rtl;text-align:right;border-bottom:1px dotted #ddd;">'
+        + label
+        + (note ? '<br><span style="font-size:10px;color:#aaa;">' + note + '</span>' : '')
+        + '</td>'
+        + '<td style="font-size:15px;font-weight:bold;color:#1a3a5c;text-align:center;direction:ltr;width:60px;border-bottom:1px dotted #ddd;">'
+        + time + '</td></tr>';
     }
     if (t.length > 4 && t.charAt(0) === '~' && t.charAt(t.length - 1) === '~') {
-      items.push({ k: 'note', text: t.substring(1, t.length - 1).trim() });
-      return;
+      var noteText = escHtml(t.substring(1, t.length - 1).trim());
+      return '<tr><td colspan="2" style="background:#f5f0e8;border-right:3px solid #c9a84c;padding:8px 12px;font-size:13px;color:#333;direction:rtl;text-align:right;">'
+        + noteText + '</td></tr>';
     }
-    var m = l.match(/^(.+?):\s*(\d{1,2}:\d{2})\s*(.*)$/);
-    if (m) {
-      items.push({
-        k: 'row', label: m[1].trim(), time: m[2],
-        note: (m[3] || '').replace(/^\(|\)$/g, '').trim()
-      });
-      return;
-    }
-    items.push({ k: 'free', text: t });
-  });
-  // ניקוי רווחים בקצוות
-  while (items.length && items[0].k === 'gap') items.shift();
-  while (items.length && items[items.length - 1].k === 'gap') items.pop();
-  return { title: title, items: items };
+    return '<tr><td colspan="2" style="font-size:13px;color:#555;padding:4px 2px;direction:rtl;text-align:center;font-style:italic;">' + escHtml(l) + '</td></tr>';
+  }).join('');
 }
 
-// טקסט עוטף לפי רוחב עמודה
-function posterWrap(ctx, text, maxw, font) {
-  ctx.font = font;
-  var words = String(text).split(' ');
-  var out = [], cur = '';
-  for (var i = 0; i < words.length; i++) {
-    var t = cur ? cur + ' ' + words[i] : words[i];
-    if (cur && ctx.measureText(t).width > maxw) { out.push(cur); cur = words[i]; }
-    else cur = t;
-  }
-  if (cur) out.push(cur);
-  return out;
+// ---- זהה ל-buildBlankPage, אך מחזיר רק את גוף המעטפת (600px) ----
+function emailWrapHtml(body, subject) {
+  var innerContent = ''
+    + '<div style="font-size:16px;font-weight:bold;color:#1a3a5c;text-align:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1.5px solid #bbb;">'
+    + escHtml(subject) + '</div>'
+    + '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">'
+    + emailRowsFromText(body)
+    + '</table>';
+
+  return '<table cellpadding="0" cellspacing="0" border="0" '
+    + 'style="width:600px;background:#ffffff;font-family:Heebo,Arial,sans-serif;direction:rtl;">'
+    + '<tr><td style="padding:0;margin:0;line-height:1;">'
+    +   '<img src="data:image/jpeg;base64,' + BLANK_TOP_B64 + '" width="600" '
+    +   'style="display:block;width:600px;height:auto;border:0;">'
+    + '</td></tr>'
+    + '<tr><td style="background:#ffffff;padding:8px 30px 16px 30px;direction:rtl;">'
+    +   innerContent
+    + '</td></tr>'
+    + '<tr><td style="padding:0;margin:0;line-height:1;">'
+    +   '<img src="data:image/jpeg;base64,' + BLANK_BOT_B64 + '" width="600" '
+    +   'style="display:block;width:600px;height:auto;border:0;">'
+    + '</td></tr>'
+    + '</table>';
 }
 
-// מצייר (או רק מודד) את גוף המודעה. מחזיר את הגובה הכולל.
-// עיצוב: כותרת ראשית מתחת ללוגו, עמודת תוכן ימנית, כותרות יום
-// על רצועה בהירה עם פס זהב, ושתי עמודות מיושרות — תווית מימין, שעה משמאל.
-function posterDraw(ctx, parsed, top, scale, measureOnly) {
-  var F = function (n) { return Math.round(n * scale); };
-  var BX1 = POSTER.W - 130;          // קצה ימני של עמודת התוכן
-  var BX0 = BX1 - 790;               // קצה שמאלי
-  var TIMEX = BX0 + F(170);          // עמודת השעות — מיושרת לימין כדי שהספרות יתיישרו
-  var y = top;
-  var navy = '#123453', navyDark = '#0f2c48', gold = '#c9a84c';
-  var dark = '#111827', mid = '#4b5563', gray = '#7c7c7c';
-  var fam = ' Heebo, Arial, sans-serif';
-
-  var last = -1;
-  parsed.items.forEach(function (it, i) { if (it.k !== 'gap' && it.k !== 'rule') last = i; });
-  var stripe = 0;
-
-  function text(t, font, color, align, x, yy) {
-    if (measureOnly) return;
-    ctx.font = font; ctx.fillStyle = color;
-    ctx.textAlign = align;
-    ctx.direction = (align === 'left') ? 'ltr' : 'rtl';
-    ctx.fillText(t, x, yy);
+// נושא ההודעה — נגזר מהשורה הראשונה של הטקסט, ולכן תמיד תואם למה שרואים
+function chagSubject() {
+  var ta = document.getElementById('chag-message');
+  var first = ((ta && ta.value) || '').split('\n')[0].trim();
+  if (first && first.indexOf('זמני תפילות') === 0) {
+    return first + ' | בית כנסת הרמח"ל מיצד';
   }
-  function rect(x, w, h, color) {
-    if (measureOnly) return;
-    ctx.fillStyle = color; ctx.fillRect(x, y, w, h);
-  }
-
-  parsed.items.forEach(function (it, idx) {
-    if (it.k === 'rule') return;
-    if (it.k === 'gap') { y += F(14); return; }
-
-    // ---------- כותרת יום ----------
-    if (it.k === 'head') {
-      y += F(18);
-      var hh = F(56);
-      rect(BX0, BX1 - BX0, hh, '#e9eef4');
-      rect(BX1 - F(8), F(8), hh, gold);
-      text(it.text, 'bold ' + F(44) + 'px' + fam, navyDark, 'right', BX1 - F(28), y + hh / 2 + F(15));
-      y += hh + F(10);
-      stripe = 0;
-      return;
-    }
-
-    // ---------- הערה מודגשת ----------
-    if (it.k === 'note') {
-      var nf = F(28) + 'px' + fam;
-      var lines = posterWrap(ctx, '• ' + it.text, BX1 - BX0 - F(60), nf);
-      var nh = F(18) + lines.length * F(38);
-      rect(BX0, BX1 - BX0, nh, '#f8f3e8');
-      rect(BX1 - F(7), F(7), nh, gold);
-      for (var i = 0; i < lines.length; i++) {
-        text(lines[i], nf, dark, 'right', BX1 - F(28), y + F(38) + i * F(38));
-      }
-      y += nh + F(10);
-      return;
-    }
-
-    // ---------- שורת טקסט חופשי ----------
-    if (it.k === 'free') {
-      var isEnd = (idx === last);
-      var ff = (isEnd ? 'bold ' : '') + F(isEnd ? 35 : 30) + 'px' + fam;
-      if (isEnd) {
-        y += F(16);
-        if (!measureOnly) {
-          ctx.strokeStyle = gold; ctx.lineWidth = Math.max(1, F(3));
-          ctx.beginPath();
-          ctx.moveTo((BX0 + BX1) / 2 - F(80), y); ctx.lineTo((BX0 + BX1) / 2 + F(80), y);
-          ctx.stroke();
-        }
-        y += F(20);
-      }
-      var fl = posterWrap(ctx, it.text, BX1 - BX0 - F(40), ff);
-      for (var k = 0; k < fl.length; k++) {
-        text(fl[k], ff, isEnd ? navyDark : mid, 'center', (BX0 + BX1) / 2, y + F(30) + k * F(40));
-      }
-      y += F(10) + fl.length * F(40);
-      return;
-    }
-
-    // ---------- שורת זמן ----------
-    var rowH = it.note ? F(68) : F(50);
-    if (stripe % 2 === 1) rect(BX0, BX1 - BX0, rowH, '#f4f6f9');
-    stripe++;
-    text(it.label, F(33) + 'px' + fam, dark, 'right', BX1 - F(28), y + F(35));
-    if (it.note) {
-      text(it.note, F(22) + 'px' + fam, gray, 'right', BX1 - F(28), y + F(58));
-    }
-    text(it.time, 'bold ' + F(37) + 'px' + fam, navy, 'right', TIMEX, y + F(37));
-    y += rowH;
-  });
-
-  return y - top;
+  var sel = document.getElementById('chag-select');
+  var b = (CHAG.current && CHAG.current.block) || (sel && CHAG.blocks ? CHAG.blocks[+sel.value] : null);
+  return 'זמני תפילות ' + (b && b.title ? b.title : 'חג') + ' | בית כנסת הרמח"ל מיצד';
 }
 
 async function chagExportPoster() {
@@ -3002,80 +2940,55 @@ async function chagExportPoster() {
 
   var btn = document.getElementById('chag-poster-btn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="loading"></span> מייצר...'; }
+  var holder = null;
 
   try {
+    await loadHtml2Canvas();
     if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
-    var imgs = await Promise.all([chagLoadImg(BLANK_TOP_B64), chagLoadImg(BLANK_BOT_B64)]);
-    var topImg = imgs[0], botImg = imgs[1];
 
-    var canvas = document.createElement('canvas');
-    canvas.width = POSTER.W; canvas.height = POSTER.H;
-    var ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, POSTER.W, POSTER.H);
+    holder = document.createElement('div');
+    holder.setAttribute('dir', 'rtl');
+    holder.style.cssText = 'position:fixed;left:-12000px;top:0;width:600px;background:#ffffff;z-index:-1;';
+    holder.innerHTML = emailWrapHtml(text, chagSubject());
+    document.body.appendChild(holder);
 
-    // ---- הלוגו והפוטר: מוגדלים מעט וכהים יותר ----
-    // הלוגו מוגדל ב-12% (השוליים הדקים של המסגרת נחתכים) והחלק התחתון
-    // הריק שלו נגזר, כדי שהלוגו יגדל בלי לגזול גובה מהתוכן.
-    var TOPK = 1.0, BOTK = 1.08;
-    var topW = Math.round(POSTER.W * TOPK);
-    var topFull = Math.round(topW * (topImg.height / topImg.width));
-    var topH = Math.min(topFull, 510);                // הגובה שנצבע בדף
-    var srcH = topImg.height * Math.min(1, topH / topFull);
-    var botW = Math.round(POSTER.W * BOTK);
-    var botH = Math.round(botW * (botImg.height / botImg.width));
+    // המתנה לפריסת התמונות המוטמעות
+    await new Promise(function (r) { setTimeout(r, 250); });
 
-    var areaTop = topH + 26;
-    var areaBottom = POSTER.H - botH - 26;
-    var avail = areaBottom - areaTop;
+    var shot = await html2canvas(holder.firstChild, {
+      scale: 2.4, backgroundColor: '#ffffff', logging: false, width: 600
+    });
 
-    var parsed = posterItems(text);
-    // מדידה עם אותו ctx (נדרש למדידת רוחב טקסט לעטיפה)
-    var need = posterDraw(ctx, parsed, areaTop, 1, true);
-    var scale = 1;
-    if (need > avail) scale = Math.max(0.55, avail / need);
-    else scale = Math.min(1.2, avail / need);
+    // הטמעה על דף A4 לבן
+    var A4W = 1240, A4H = 1754, M = 34;
+    var out = document.createElement('canvas');
+    out.width = A4W;
+    out.height = A4H;
+    var octx = out.getContext('2d');
+    octx.fillStyle = '#ffffff';
+    octx.fillRect(0, 0, A4W, A4H);
 
-    // ניגודיות: מכהה ומחדד את הבלאנק האפור
-    var oldFilter = ctx.filter;
-    try { ctx.filter = 'contrast(1.4) brightness(0.93) saturate(1.05)'; } catch (e) {}
-    ctx.drawImage(topImg, 0, 0, topImg.width, srcH,
-                  Math.round((POSTER.W - topW) / 2), 0, topW, topH);
-    ctx.drawImage(botImg, Math.round((POSTER.W - botW) / 2), POSTER.H - botH, botW, botH);
-    try { ctx.filter = oldFilter || 'none'; } catch (e) {}
+    var k = Math.min((A4W - 2 * M) / shot.width, (A4H - 2 * M) / shot.height);
+    var dw = Math.round(shot.width * k), dh = Math.round(shot.height * k);
+    octx.drawImage(shot, Math.round((A4W - dw) / 2), Math.round((A4H - dh) / 2), dw, dh);
 
-    // ---- הכותרת הראשית: בתוך הבלאנק, מתחת ללוגו ----
-    if (parsed.title) {
-      var tfs = 46;
-      ctx.font = 'bold ' + tfs + 'px Heebo, Arial, sans-serif';
-      ctx.direction = 'rtl'; ctx.textAlign = 'right';
-      ctx.fillStyle = '#0f2c48';
-      var tx = POSTER.W - 130;
-      var ty = topH - 26;
-      ctx.fillText(parsed.title, tx, ty);
-      var tw = ctx.measureText(parsed.title).width;
-      ctx.strokeStyle = '#c9a84c'; ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.moveTo(tx, ty + 15); ctx.lineTo(tx - tw, ty + 15); ctx.stroke();
-    }
-
-    posterDraw(ctx, parsed, areaTop, scale, false);
-
-    var name = (parsed.title || 'מודעה').replace(/[\\/:*?"<>|]/g, '') + '.png';
-    canvas.toBlob(function (blob) {
+    var first = text.split('\n')[0].trim() || 'מודעה';
+    var name = first.replace(/[\\/:*?"<>|]/g, '') + '.png';
+    out.toBlob(function (blob) {
       if (!blob) { showAlert('chag', 'שגיאה ביצירת התמונה', 'error'); return; }
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url; a.download = name;
       document.body.appendChild(a); a.click();
       setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 2000);
-      showAlert('chag', '🖼 המודעה נשמרה כתמונה בגודל A4, מוכנה להדפסה.', 'success');
+      showAlert('chag', '🖼 המודעה נשמרה כתמונה — זהה לעיצוב המייל, על דף A4.', 'success');
     }, 'image/png');
 
   } catch (e) {
     showAlert('chag', 'שגיאה בייצוא המודעה: ' + e.message, 'error');
   }
 
+  if (holder) holder.remove();
   if (btn) { btn.disabled = false; btn.innerHTML = '🖼️ שמור כמודעה A4'; }
 }
 
@@ -3267,8 +3180,7 @@ async function sendChag(channel) {
   if (/\[שעה\]/.test(msg)) {
     if (!confirm('בהודעה נותרו שדות [שעה] שלא מולאו. לשלוח בכל זאת?')) return;
   }
-  var title = CHAG.current ? CHAG.current.block.title : 'חג';
-  var subject = 'זמני תפילות ' + title + ' | בית כנסת הרמח"ל מיצד';
+  var subject = chagSubject();
   if (STATE.settings.confirmSend) {
     var ch = channel === 'both' ? 'מייל ווואטסאפ' : channel === 'email' ? 'מייל' : 'וואטסאפ';
     if (!confirm('לשלוח ב' + ch + '?')) return;
