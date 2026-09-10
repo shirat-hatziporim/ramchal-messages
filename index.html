@@ -1602,7 +1602,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-10.17';
+var APP_VERSION = '2026-09-10.18';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -3010,6 +3010,15 @@ function emailWrapHtml(body, subject, width, m) {
     + '</table>';
 }
 
+// כותרת המודעה המודפסת — רק שם החג. שם בית הכנסת מופיע על הבלאנק עצמו,
+// ולכן חזרה עליו כאן מיותרת. בנושא המייל הוא כן נשאר.
+function chagPrintTitle() {
+  var ta = document.getElementById('chag-message');
+  var first = ((ta && ta.value) || '').split('\n')[0].trim();
+  if (first) return first.replace(/\s*\|\s*בית כנסת הרמח"ל מיצד\s*$/, '').trim();
+  return chagSubject().split(' | ')[0];
+}
+
 // נושא ההודעה — נגזר מהשורה הראשונה של הטקסט, ולכן תמיד תואם למה שרואים
 function chagSubject() {
   var ta = document.getElementById('chag-message');
@@ -3035,7 +3044,7 @@ async function chagExportPoster() {
     await loadHtml2Canvas();
     if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
 
-    var subject = chagSubject();
+    var subject = chagPrintTitle();
     var boxH = Math.round(PAGE.H * (PAGE.BOX_B - PAGE.BOX_T));
 
     function build(m) {
