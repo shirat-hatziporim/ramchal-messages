@@ -1602,7 +1602,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-10.12';
+var APP_VERSION = '2026-09-10.13';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2910,8 +2910,8 @@ function emailWrapHtml(body, subject, width, m) {
     + emailRowsFromText(body, m)
     + '</table>';
 
-  var pad = m ? 22 : Math.round(30 * W / 600);
-  var OVER = m ? 1.10 : 1;   // מרחיב את הבלאנק וגוזר את השוליים הלבנים המובנים שלו
+  var pad = m ? 40 : Math.round(30 * W / 600);
+  var OVER = m ? 1.06 : 1;   // מרחיב את הבלאנק וגוזר את השוליים הלבנים המובנים שלו
   return '<table cellpadding="0" cellspacing="0" border="0" '
     + 'style="width:' + W + 'px;background:#ffffff;font-family:Heebo,Arial,sans-serif;direction:rtl;">'
     + '<tr><td style="padding:0;margin:0;line-height:1;">'
@@ -2959,7 +2959,7 @@ async function chagExportPoster() {
     await loadHtml2Canvas();
     if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
 
-    var A4W = 1240, A4H = 1754, M = 8;
+    var A4W = 1240, A4H = 1754, M = 28;
     var PRINT_FS = 2.6;           // הגדלת הגופן בגרסת ההדפסה
     var subject = chagSubject();
 
