@@ -1602,7 +1602,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-10.3';
+var APP_VERSION = '2026-09-10.4';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2900,61 +2900,102 @@ function posterWrap(ctx, text, maxw, font) {
 }
 
 // מצייר (או רק מודד) את גוף המודעה. מחזיר את הגובה הכולל.
-// העיצוב: עמודת טקסט מיושרת לימין, כמו במודעה המקורית.
+// עיצוב: עמודת תוכן ימנית, כותרות יום על רצועה בהירה עם פס זהב,
+// שורות זמן בשתי עמודות עם קו מנוקד עדין, והערות בתיבת דגש.
 function posterDraw(ctx, parsed, top, scale, measureOnly) {
   var F = function (n) { return Math.round(n * scale); };
-  var RX = POSTER.W - POSTER.PAD;          // שוליים ימניים
-  var MAXW = Math.round(POSTER.W * 0.60);  // רוחב עמודת הטקסט
+  var BX1 = POSTER.W - 130;          // קצה ימני של עמודת התוכן
+  var BX0 = BX1 - 810;               // קצה שמאלי
   var y = top;
-  var navy = '#1a3a5c', dark = '#1a1a1a', gray = '#666666';
+  var navy = '#1a3a5c', gold = '#c9a84c', dark = '#242a33', gray = '#8d8d8d';
   var fam = ' Heebo, Arial, sans-serif';
 
-  function put(text, font, color, extraLead, underline) {
-    var lines = posterWrap(ctx, text, MAXW, font);
-    var lead = F(extraLead);
-    for (var i = 0; i < lines.length; i++) {
-      if (!measureOnly) {
-        ctx.direction = 'rtl';
-        ctx.textAlign = 'right';
-        ctx.font = font;
-        ctx.fillStyle = color;
-        ctx.fillText(lines[i], RX, y + lead);
-        if (underline) {
-          var w = ctx.measureText(lines[i]).width;
-          ctx.strokeStyle = color;
-          ctx.lineWidth = Math.max(1, F(2));
-          ctx.beginPath();
-          ctx.moveTo(RX, y + lead + F(7));
-          ctx.lineTo(RX - w, y + lead + F(7));
-          ctx.stroke();
-        }
-      }
-      y += lead + F(6);
-    }
+  var last = -1;
+  parsed.items.forEach(function (it, i) { if (it.k !== 'gap' && it.k !== 'rule') last = i; });
+  var stripe = 0;
+
+  function text(t, font, color, align, x, yy) {
+    if (measureOnly) return;
+    ctx.font = font; ctx.fillStyle = color;
+    ctx.textAlign = align;
+    ctx.direction = (align === 'left') ? 'ltr' : 'rtl';
+    ctx.fillText(t, x, yy);
+  }
+  function rect(x, w, h, color) {
+    if (measureOnly) return;
+    ctx.fillStyle = color; ctx.fillRect(x, y, w, h);
   }
 
-  parsed.items.forEach(function (it) {
-    if (it.k === 'rule') return;                    // המודעה המקורית ללא קווים מפרידים
-    if (it.k === 'gap') { y += F(16); return; }
+  parsed.items.forEach(function (it, idx) {
+    if (it.k === 'rule') return;
+    if (it.k === 'gap') { y += F(10); return; }
 
+    // ---------- כותרת יום ----------
     if (it.k === 'head') {
-      y += F(26);
-      put(it.text, 'bold ' + F(37) + 'px' + fam, dark, 37, true);
-      y += F(10);
+      y += F(20);
+      var hh = F(52);
+      rect(BX0, BX1 - BX0, hh, '#eef2f6');
+      rect(BX1 - F(7), F(7), hh, gold);
+      text(it.text, 'bold ' + F(35) + 'px' + fam, navy, 'right', BX1 - F(26), y + hh / 2 + F(12));
+      y += hh + F(8);
+      stripe = 0;
       return;
     }
+
+    // ---------- הערה מודגשת ----------
     if (it.k === 'note') {
-      put('• ' + it.text, F(27) + 'px' + fam, dark, 27, false);
-      y += F(6);
+      var nf = F(26) + 'px' + fam;
+      var lines = posterWrap(ctx, '• ' + it.text, BX1 - BX0 - F(56), nf);
+      var nh = F(14) + lines.length * F(34);
+      rect(BX0, BX1 - BX0, nh, '#f8f3e8');
+      rect(BX1 - F(6), F(6), nh, gold);
+      for (var i = 0; i < lines.length; i++) {
+        text(lines[i], nf, dark, 'right', BX1 - F(26), y + F(30) + i * F(34));
+      }
+      y += nh + F(10);
       return;
     }
+
+    // ---------- שורת טקסט חופשי ----------
     if (it.k === 'free') {
-      put(it.text, F(31) + 'px' + fam, dark, 31, false);
+      var isEnd = (idx === last);
+      var ff = (isEnd ? 'bold ' : '') + F(isEnd ? 31 : 27) + 'px' + fam;
+      if (isEnd) {
+        y += F(12);
+        if (!measureOnly) {
+          ctx.strokeStyle = gold; ctx.lineWidth = Math.max(1, F(2));
+          ctx.beginPath();
+          ctx.moveTo((BX0 + BX1) / 2 - F(70), y); ctx.lineTo((BX0 + BX1) / 2 + F(70), y);
+          ctx.stroke();
+        }
+        y += F(16);
+      }
+      var fl = posterWrap(ctx, it.text, BX1 - BX0 - F(40), ff);
+      for (var k = 0; k < fl.length; k++) {
+        text(fl[k], ff, isEnd ? navy : '#5b6470', 'center', (BX0 + BX1) / 2, y + F(26) + k * F(34));
+      }
+      y += F(10) + fl.length * F(34);
       return;
     }
-    // שורת זמן — "תווית: שעה" בשורה אחת, כמו במודעה
-    var txt = it.label + ': ' + it.time + (it.note ? ' (' + it.note + ')' : '');
-    put(txt, F(31) + 'px' + fam, dark, 31, false);
+
+    // ---------- שורת זמן ----------
+    var rowH = it.note ? F(62) : F(46);
+    if (stripe % 2 === 1) rect(BX0, BX1 - BX0, rowH, '#fbfaf7');
+    stripe++;
+    text(it.label, F(29) + 'px' + fam, dark, 'right', BX1 - F(26), y + F(33));
+    if (it.note) {
+      text(it.note, F(20) + 'px' + fam, gray, 'right', BX1 - F(26), y + F(55));
+    }
+    text(it.time, 'bold ' + F(33) + 'px' + fam, navy, 'left', BX0 + F(26), y + F(35));
+    if (!measureOnly) {
+      ctx.strokeStyle = '#e3ded2'; ctx.lineWidth = 1;
+      ctx.setLineDash([2, 5]);
+      ctx.beginPath();
+      ctx.moveTo(BX0 + F(16), y + rowH - 1); ctx.lineTo(BX1 - F(16), y + rowH - 1);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    y += rowH;
   });
 
   return y - top;
@@ -2996,18 +3037,17 @@ async function chagExportPoster() {
 
     // הכותרת יושבת בתוך אזור הלוגו, מיושרת לימין ומודגשת — כמו במודעה
     if (parsed.title) {
-      var tf = 'bold ' + Math.round(40 * Math.min(1.1, scale + 0.15)) + 'px Heebo, Arial, sans-serif';
-      ctx.font = tf;
+      ctx.font = 'bold ' + Math.round(44 * Math.min(1.1, scale + 0.2)) + 'px Heebo, Arial, sans-serif';
       ctx.direction = 'rtl';
       ctx.textAlign = 'right';
-      ctx.fillStyle = '#1a1a1a';
-      var ty = Math.round(topH * 0.42);
-      var tx = POSTER.W - POSTER.PAD;
+      ctx.fillStyle = '#1a3a5c';
+      var ty = Math.round(topH * 0.40);
+      var tx = POSTER.W - 130;
       ctx.fillText(parsed.title, tx, ty);
       var tw = ctx.measureText(parsed.title).width;
-      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2;
+      ctx.strokeStyle = '#c9a84c'; ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.moveTo(tx, ty + 9); ctx.lineTo(tx - tw, ty + 9); ctx.stroke();
+      ctx.moveTo(tx, ty + 14); ctx.lineTo(tx - tw, ty + 14); ctx.stroke();
     }
 
     posterDraw(ctx, parsed, areaTop, scale, false);
