@@ -1247,6 +1247,8 @@
           <input type="number" id="hh-rate-guest" min="0" placeholder="אורח" onchange="hhRateChange()" style="width:95px;padding:9px 10px;border:1.5px solid var(--gray-light);border-radius:8px;font-family:inherit;">
         </div>
         <button class="btn btn-gold btn-sm" onclick="hhApplyFees()">חשב דמי רישום</button>
+        <button class="btn btn-primary btn-sm" onclick="hhDuplicateAll()">⧉ שכפל רישומי ר"ה ליו"כ</button>
+        <button class="btn btn-outline btn-sm" id="hh-arch-btn" onclick="hhToggleArchive()">🗄 ארכיון</button>
         <button class="btn btn-outline btn-sm" onclick="exportHHCSV()">ייצוא CSV</button>
         <button class="btn btn-outline btn-sm" onclick="hhCopyViewLink()">👁 קישור צפייה</button>
       </div>
@@ -1602,7 +1604,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-10.18';
+var APP_VERSION = '2026-09-14.19';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -4313,6 +4315,137 @@ function hhTotalSeats(r) {
   return Number(r.rhMen || 0) + Number(r.rhWomen || 0) + Number(r.ykMen || 0) + Number(r.ykWomen || 0);
 }
 
+// ---------- ארכיון: חג שכבר עבר ----------
+// סימון תצוגתי בלבד ('<שנה>|rh'), נשמר ב-localStorage. שום רישום לא נמחק ולא משתנה —
+// הרשימה נשארת זמינה בלחיצה על כפתור הסינון, כולל דמי רישום ויתרות לגבייה.
+function hhArchived() {
+  try { return JSON.parse(localStorage.getItem('hh_archive') || '[]') || []; }
+  catch (e) { return []; }
+}
+function hhIsArchived(year, h) { return hhArchived().indexOf(year + '|' + h) >= 0; }
+
+// הכפתור פועל על החג שבסינון; ב"הכל" — על ראש השנה.
+function hhArchiveTarget() { return hhFilter() === 'yk' ? 'yk' : 'rh'; }
+
+function hhToggleArchive() {
+  var year = hhCurrentYear();
+  var h = hhArchiveTarget();
+  var key = year + '|' + h;
+  var a = hhArchived();
+  var i = a.indexOf(key);
+  if (i >= 0) {
+    a.splice(i, 1);
+  } else {
+    if (!confirm('להעביר את רישומי ' + hhHolidayLabel(h) + ' ' + year + ' לארכיון?\n\n'
+      + 'הרישומים נשמרים במלואם וניתן להחזיר אותם בכל רגע —\n'
+      + 'הם פשוט לא יופיעו ברשימה הפעילה ולא ייספרו במקומות הפנויים.')) return;
+    a.push(key);
+    localStorage.setItem('hh_filter', h === 'rh' ? 'yk' : 'rh');
+  }
+  localStorage.setItem('hh_archive', JSON.stringify(a));
+  renderHH();
+  showAlert('hh', i >= 0
+    ? '↩ ' + hhHolidayLabel(h) + ' הוחזר מהארכיון'
+    : '🗄 ' + hhHolidayLabel(h) + ' הועבר לארכיון', 'success');
+}
+
+// ראש השנה תשפ"ז הסתיים — מועבר לארכיון פעם אחת, אצל כל מכשיר, בטעינה הראשונה.
+(function hhArchiveInit() {
+  try {
+    if (localStorage.getItem('hh_arch_init')) return;
+    var year = hhCurrentYear(), a = hhArchived();
+    if (a.indexOf(year + '|rh') < 0) a.push(year + '|rh');
+    localStorage.setItem('hh_archive', JSON.stringify(a));
+    localStorage.setItem('hh_filter', 'yk');
+    localStorage.setItem('hh_arch_init', '1');
+  } catch (e) {}
+})();
+
+// ---------- שכפול רישום מראש השנה ליום כיפור ----------
+// מפתח זהות: מתפלל לפי מזהה, אורח לפי שם — כדי לא לשכפל למי שכבר נרשם ליו"כ בנפרד.
+function hhPersonKey(r) {
+  return r.memberId ? 'm:' + r.memberId : 'g:' + String(hhRegName(r)).trim();
+}
+
+// הרישום המקביל ליום כיפור, אם קיים
+function hhYkTwin(r) {
+  var twinId = r.id + '-yk', key = hhPersonKey(r), l = STATE.hh || [];
+  for (var i = 0; i < l.length; i++) {
+    var x = l[i];
+    if (x.year !== r.year || hhHoliday(x) !== 'yk') continue;
+    if (x.id === twinId || hhPersonKey(x) === key) return x;
+  }
+  return null;
+}
+
+// מזהה קבוע ('-yk') — שכפול חוזר לא ייצור כפילויות
+function hhMakeYk(r) {
+  var rates = hhRates();
+  var men = Number(r.rhMen || 0), women = Number(r.rhWomen || 0);
+  return {
+    id: r.id + '-yk',
+    year: r.year,
+    memberId: r.memberId || '',
+    name: r.memberId ? '' : (r.name || ''),
+    rhMen: 0, rhWomen: 0,
+    ykMen: men, ykWomen: women,
+    fee: (men + women) * (r.memberId ? rates.member : rates.guest),
+    chargeId: '',
+    notes: r.notes || ''
+  };
+}
+
+function hhDuplicateOne(id) {
+  var r = (STATE.hh || []).filter(function(x) { return x.id === id; })[0];
+  if (!r || hhHoliday(r) !== 'rh') return;
+  if (hhYkTwin(r)) { showAlert('hh', 'ל' + hhRegName(r) + ' כבר יש רישום ליום כיפור', 'success'); return; }
+  var n = hhMakeYk(r);
+  if (!confirm('לשכפל את הרישום של ' + hhRegName(r) + ' ליום כיפור?\n\n'
+    + 'גברים: ' + n.ykMen + ' · עזרת נשים: ' + n.ykWomen
+    + '\nדמי רישום: ' + n.fee + ' ₪ (ניתן לשנות בעריכה)')) return;
+  STATE.hh = STATE.hh || [];
+  STATE.hh.push(n);
+  hhSaveLocal();
+  syncSaveHH(n);
+  renderHH();
+  showAlert('hh', '✅ נוסף רישום ליום כיפור עבור ' + hhRegName(r), 'success');
+}
+
+function hhDuplicateAll() {
+  var year = hhCurrentYear();
+  var rh = (STATE.hh || []).filter(function(r) {
+    return r.year === year && hhHoliday(r) === 'rh' && (Number(r.rhMen || 0) + Number(r.rhWomen || 0)) > 0;
+  });
+  if (!rh.length) { showAlert('hh', 'אין רישומי ראש השנה לשנת ' + year, 'success'); return; }
+
+  var add = [], skipped = 0, men = 0, women = 0, fee = 0;
+  rh.forEach(function(r) {
+    if (hhYkTwin(r)) { skipped++; return; }
+    var n = hhMakeYk(r);
+    add.push(n); men += n.ykMen; women += n.ykWomen; fee += n.fee;
+  });
+
+  if (!add.length) {
+    showAlert('hh', 'כל ' + skipped + ' רישומי ראש השנה כבר קיימים גם ליום כיפור', 'success');
+    return;
+  }
+
+  var msg = 'לשכפל ' + add.length + ' רישומים מראש השנה ליום כיפור?\n\n'
+    + 'גברים: ' + men + ' · עזרת נשים: ' + women
+    + '\nדמי רישום: ' + fee + ' ₪'
+    + (skipped ? '\n\n(' + skipped + ' כבר רשומים ליום כיפור — לא ישוכפלו)' : '')
+    + '\n\nרישומי ראש השנה נשארים כמו שהם. אפשר לערוך או למחוק כל רישום חדש בנפרד.';
+  if (!confirm(msg)) return;
+
+  add.forEach(function(n) { STATE.hh.push(n); });
+  hhSaveLocal();
+  add.forEach(function(n, k) { setTimeout(function() { syncSaveHH(n); }, k * 200); });
+  localStorage.setItem('hh_filter', 'yk');
+  renderHH();
+  showAlert('hh', '✅ שוכפלו ' + add.length + ' רישומים ליום כיפור'
+    + (skipped ? ' · ' + skipped + ' דולגו (כבר היו רשומים)' : ''), 'success');
+}
+
 function renderHH() {
   var year = hhCurrentYear();
   var sel = document.getElementById('hh-year');
@@ -4339,8 +4472,16 @@ function renderHH() {
   var flt = hhFilter();
   ['all', 'rh', 'yk'].forEach(function(k) {
     var b = document.getElementById('hhf-' + k);
-    if (b) b.className = 'btn btn-sm ' + (k === flt ? 'btn-primary' : 'btn-outline');
+    if (!b) return;
+    b.className = 'btn btn-sm ' + (k === flt ? 'btn-primary' : 'btn-outline');
+    if (k !== 'all') b.textContent = hhHolidayLabel(k) + (hhIsArchived(year, k) ? ' 🗄' : '');
   });
+
+  var archBtn = document.getElementById('hh-arch-btn');
+  if (archBtn) {
+    var tgt = hhArchiveTarget();
+    archBtn.textContent = (hhIsArchived(year, tgt) ? '↩ החזר מארכיון: ' : '🗄 לארכיון: ') + hhHolidayLabel(tgt);
+  }
   var pf = hhPaidFilter();
   var pSel = document.getElementById('hh-paid-filter');
   if (pSel && pSel.value !== pf) pSel.value = pf;
@@ -4363,7 +4504,11 @@ function renderHH() {
   setTxt('hhstat-yk-men', t.ykMen);
   setTxt('hhstat-yk-women', t.ykWomen);
 
-  var maxMen = Math.max(t.rhMen, t.ykMen), maxWomen = Math.max(t.rhWomen, t.ykWomen);
+  // המקומות הפנויים נספרים לפי החגים שאינם בארכיון — חג שעבר כבר לא תופס כיסא
+  var rhOn = !hhIsArchived(year, 'rh'), ykOn = !hhIsArchived(year, 'yk');
+  if (!rhOn && !ykOn) { rhOn = true; ykOn = true; }
+  var maxMen   = Math.max(rhOn ? t.rhMen : 0,   ykOn ? t.ykMen : 0);
+  var maxWomen = Math.max(rhOn ? t.rhWomen : 0, ykOn ? t.ykWomen : 0);
   var remEl = document.getElementById('hh-remaining');
   if (remEl) {
     var parts = [];
@@ -4381,6 +4526,9 @@ function renderHH() {
       + ' · יתרה לגבייה: ' + fmtMoney(Math.max(0, vFee - vPaid)));
     if (cap.men)   parts.push('גברים: ' + maxMen + '/' + cap.men + ' (נותרו ' + Math.max(0, cap.men - maxMen) + ')');
     if (cap.women) parts.push('עזרת נשים: ' + maxWomen + '/' + cap.women + ' (נותרו ' + Math.max(0, cap.women - maxWomen) + ')');
+    ['rh', 'yk'].forEach(function(k) {
+      if (hhIsArchived(year, k)) parts.push('🗄 ' + hhHolidayLabel(k) + ' בארכיון (החג הסתיים)');
+    });
     remEl.textContent = parts.join('  |  ');
   }
 
@@ -4419,7 +4567,9 @@ function renderHH() {
       + (r.notes ? '<div style="font-size:11px;color:var(--gray-mid);">' + escHtml(r.notes) + '</div>' : '')
       + '</td>'
       + '<td><span class="badge ' + (h === 'yk' ? 'badge-navy' : 'badge-gold') + '">'
-      + hhHolidayLabel(h) + '</span></td>'
+      + hhHolidayLabel(h) + '</span>'
+      + (hhIsArchived(year, h) ? '<div style="margin-top:3px;"><span class="badge badge-gray">🗄 ארכיון</span></div>' : '')
+      + '</td>'
       + '<td style="font-size:13px;">' + cell(hhMen(r), hhWomen(r)) + '</td>'
       + '<td style="font-size:12px;color:var(--gray-mid);white-space:nowrap;">'
       + (hhRegDateHe(r) || '—') + '</td>'
@@ -4440,6 +4590,8 @@ function renderHH() {
               ? '<button class="btn btn-gold btn-sm" onclick="hhMarkPaid(\'' + r.id + '\')">סמן כשולם</button>' : ''))
       + (Number(r.fee || 0) && !r.chargeId && r.memberId && !payE
           ? '<button class="btn btn-outline btn-sm" onclick="chargeHHFee(\'' + r.id + '\')">חייב בכרטיס</button>' : '')
+      + (h === 'rh' && !hhYkTwin(r)
+          ? '<button class="btn btn-outline btn-sm" onclick="hhDuplicateOne(\'' + r.id + '\')">⧉ שכפל ליו"כ</button>' : '')
       + '</div></td>'
       + '</tr>';
   }).join('');
@@ -4581,7 +4733,15 @@ function hhPayEntry(r) {
   var tag = hhPayTag(r);
   var l = STATE.ledger || [];
   for (var i = 0; i < l.length; i++) {
-    if (l[i].type === 'payment' && String(l[i].desc || '').indexOf(tag) >= 0) return l[i];
+    if (l[i].type !== 'payment') continue;
+    var d = String(l[i].desc || '');
+    // התג חייב להסתיים כאן: '#h123' אינו התשלום של '#h123-yk' (הרישום המשוכפל ליו"כ)
+    var at = d.indexOf(tag);
+    while (at >= 0) {
+      var nxt = d.charAt(at + tag.length);
+      if (nxt === '' || nxt === ' ' || nxt === '\n') return l[i];
+      at = d.indexOf(tag, at + 1);
+    }
   }
   return null;
 }
