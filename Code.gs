@@ -268,7 +268,19 @@ function notifyGabbai(shabbatDate, parasha) {
 }
 
 // ==================== שליפת פרשה ====================
+// שמות מיוחדים לשבתות — מתווספים לשם הפרשה בכותרת ובנושא המייל.
+// מפתח: תאריך השבת (YYYY-MM-DD).
+const SPECIAL_SHABBAT = {
+  "2026-09-19": "שבת שובה",
+};
+
 function getParasha(date) {
+  const base = getParashaBase(date);
+  const special = SPECIAL_SHABBAT[Utilities.formatDate(date, "Asia/Jerusalem", "yyyy-MM-dd")];
+  return special ? base + " - " + special : base;
+}
+
+function getParashaBase(date) {
   const dateStr = Utilities.formatDate(date, "Asia/Jerusalem", "yyyy-MM-dd");
 
   // שיטה 1: endpoint shabbat — מחזיר hebrew ישירות
