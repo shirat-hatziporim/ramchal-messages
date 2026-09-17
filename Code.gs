@@ -270,8 +270,16 @@ function notifyGabbai(shabbatDate, parasha) {
 // ==================== שליפת פרשה ====================
 // שמות מיוחדים לשבתות — מתווספים לשם הפרשה בכותרת ובנושא המייל.
 // מפתח: תאריך השבת (YYYY-MM-DD).
+// ⚠ תשפ"ז בלבד (שנה מעוברת) — יש לעדכן בכל שנה יחד עם LUACH_TASHPAZ.
 const SPECIAL_SHABBAT = {
-  "2026-09-19": "שבת שובה",
+  "2026-09-19": "שבת שובה",     // ח' תשרי — האזינו
+  "2027-03-06": "שבת שקלים",    // כ"ז אדר א' — ויקהל (ר"ח אדר ב' ג'-ד')
+  "2027-03-20": "שבת זכור",     // י"א אדר ב' — ויקרא (פורים ג' 23.3)
+  "2027-03-27": "שבת פרה",      // י"ח אדר ב' — צו
+  "2027-04-03": "שבת החודש",    // כ"ה אדר ב' — שמיני (ר"ח ניסן ה' 8.4)
+  "2027-04-17": "שבת הגדול",    // י' ניסן — מצורע
+  "2027-08-07": "שבת חזון",     // ד' אב — דברים (ט' באב ה' 12.8)
+  "2027-08-14": "שבת נחמו",     // י"א אב — ואתחנן
 };
 
 function getParasha(date) {
@@ -1140,4 +1148,23 @@ function handleMembersAction(e, output) {
   }
 
   return null;
+}
+
+// ==================== כלי בדיקה ====================
+// תצוגה מקדימה בלבד: לא שולח כלום, כותב ללוג
+function previewZmanim() {
+  const z = getZmanimForShabbat();
+  const parasha = getParasha(z.shabbatDate);
+  Logger.log('מקור: ' + (z.fromLuach ? 'לוח עתים לבינה' : 'Hebcal (!)'));
+  Logger.log(buildPlainMessage(z, parasha));
+}
+
+// שולח את המייל האמיתי רק אליך, לבדיקת המראה
+function sendTestToMe() {
+  const z = getZmanimForShabbat();
+  const parasha = getParasha(z.shabbatDate);
+  GmailApp.sendEmail(getAdminEmail(),
+    '[בדיקה] ' + CONFIG.EMAIL_SUBJECT_PREFIX + ' ' + parasha,
+    buildPlainMessage(z, parasha),
+    { htmlBody: buildHtmlEmail(z, parasha), name: CONFIG.SHUL_NAME });
 }
