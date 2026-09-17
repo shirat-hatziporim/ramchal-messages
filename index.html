@@ -1604,7 +1604,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-14.19';
+var APP_VERSION = '2026-09-17.1';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2462,6 +2462,23 @@ var CHAG_TEMPLATES = {
     ],
     greeting: 'שנה טובה ומבורכת — כתיבה וחתימה טובה!',
     build: function (c) { return chagTplRoshHashana(c); }
+  },
+
+  'יום כיפור': {
+    shacharit: '07:30',      // שחרית — שעה קבועה
+    hamelech: '08:00',       // "המלך"
+    musaf: '13:30',          // סיום מוסף משוער
+    minchaErev: '14:30',     // תפילת מנחה עיו"כ — שעה קבועה
+    candlesYK: 42,           // הדלקת נרות — דק' לפני השקיעה (ייעודי ליום כיפור, שונה מ"הדלקת נרות" הכללית של הטאב)
+    kolNidrei: 30,           // כל נדרי — דק' לפני השקיעה
+    nigunim: 17,             // ניגונים — דק' אחרי השקיעה
+    maarivErev: 30,          // מעריב ליל יום כיפור — דק' אחרי השקיעה
+    minchaDay: '16:15',      // מנחה של יום כיפור — שעה קבועה
+    neila: 60,               // נעילה — דק' לפני השקיעה
+    maarivMotzai: 20,        // מעריב במוצאי הצום — דק' אחרי השקיעה (לפני צאת הכוכבים בפועל, ראו "צאת הצום")
+    notes: [],
+    greeting: 'גמר חתימה טובה!',
+    build: function (c) { return chagTplYomKippur(c); }
   }
 };
 
@@ -2540,6 +2557,59 @@ function chagTplRoshHashana(c) {
       L.push('שקיעה: ' + day.z.shkia);
     }
   });
+
+  (cfg.notes || []).forEach(function (n) { L.push(''); L.push('~ ' + n + ' ~'); });
+  L.push('----------------------------');
+  L.push(cfg.greeting);
+  return L.join('\n');
+}
+
+// תבנית יום כיפור — משחזרת את מבנה המודעה הרשמית (מנחה עיו"כ, הדלקת נרות, כל נדרי,
+// שקיעה, ניגונים, מעריב | שחרית, המלך, סיום מוסף, מנחה, נעילה, שקיעה, מעריב, צאת הצום,
+// קידוש לבנה). מזהה אוטומטית את המקרה הנדיר שבו יום כיפור עצמו חל בשבת — ערב יום כיפור
+// לעולם אינו שבת בעצמו (יום כיפור לא חל אף פעם ביום ראשון, מדיני "לא אד\"ו ראש").
+function chagTplYomKippur(c) {
+  var b = c.block, s = c.s, days = c.days, cfg = CHAG_TEMPLATES['יום כיפור'];
+  if (!b.name) b.name = 'יום כיפור';
+  var note = (document.getElementById('chag-note') || {}).value || '';
+  var L = [];
+
+  L.push('זמני תפילות ' + b.title);
+  if (note) L.push(note);
+  L.push('בית כנסת הרמח"ל מיצד');
+  L.push('----------------------------');
+
+  var ykDay = days.filter(function (d) { return d.kind === 'day' && d.isYT; })[0];
+  var idx = days.indexOf(ykDay);
+  var erev = days[idx - 1];
+  var ez = erev.z;
+  var onShabbat = ykDay.isShabbat;
+
+  L.push('');
+  L.push('=== ' + (onShabbat ? 'ערב שבת וערב ' + b.name : chagWeekday(erev.d) + ' — ערב ' + b.name) + ' ===');
+  L.push('תפילת מנחה עיו"כ' + (onShabbat ? ' וקבלת שבת' : '') + ': ' + cfg.minchaErev);
+  L.push('הדלקת נרות' + (onShabbat ? ' (לשבת וליום כיפור)' : '') + ': ' + subMins(ez.shkia, cfg.candlesYK));
+  L.push('כל נדרי: ' + subMins(ez.shkia, cfg.kolNidrei));
+  L.push('שקיעה: ' + ez.shkia);
+  L.push('ניגונים: ' + addMins(ez.shkia, cfg.nigunim));
+  L.push('מעריב: ' + addMins(ez.shkia, cfg.maarivErev));
+
+  L.push('');
+  L.push('=== ' + (onShabbat ? 'שבת — ' + b.name : b.name) + ' ===');
+  L.push('שחרית: ' + s.shacharit);
+  L.push('המלך: ' + cfg.hamelech);
+  L.push('סיום מוסף משוער: ' + cfg.musaf);
+  L.push('מנחה: ' + cfg.minchaDay);
+  L.push('נעילה: ' + subMins(ykDay.z.shkia, cfg.neila));
+  L.push('שקיעה: ' + ykDay.z.shkia);
+  L.push('מעריב' + (onShabbat ? ' (מוצאי שבת ויום כיפור)' : '') + ': ' + addMins(ykDay.z.shkia, cfg.maarivMotzai));
+  L.push('צאת הצום' + (onShabbat ? ' וצאת השבת' : '') + ': ' + ykDay.z.tzet);
+  L.push('קידוש לבנה');
+
+  if (onShabbat) {
+    L.push('');
+    L.push('~ השנה יום כיפור חל בשבת: במוצאי הצום מברכים רק בורא מאורי האש, ללא יין ובשמים ~');
+  }
 
   (cfg.notes || []).forEach(function (n) { L.push(''); L.push('~ ' + n + ' ~'); });
   L.push('----------------------------');
