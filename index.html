@@ -1604,7 +1604,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-24.1';
+var APP_VERSION = '2026-09-24.2';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -2757,6 +2757,15 @@ function chagOverrides() {
 function chagSaveOverrides(o) {
   localStorage.setItem('chag_shkia_ov', JSON.stringify(o));
 }
+// תיקוני צאת הכוכבים וסוף זמן ק"ש — מפתח "<שדה>:<תאריך>" (זהה למפתח בגיליון)
+var CHAG_ZMAN_FIELDS = { tzet: 'צאת הכוכבים', ksh: 'סוף זמן ק"ש' };
+function chagZmanOverrides() {
+  try { return JSON.parse(localStorage.getItem('chag_zman_ov') || '{}') || {}; }
+  catch (e) { return {}; }
+}
+function chagSaveZmanOverrides(o) {
+  localStorage.setItem('chag_zman_ov', JSON.stringify(o));
+}
 
 // מחיל את התיקון של כל יום על השקיעה ועל צאת הכוכבים שלו בלבד.
 // סוף זמן ק"ש והנץ אינם מושפעים — הם זמני בוקר.
@@ -2778,17 +2787,28 @@ function chagOvTime(entry) {
 
 function chagApplyOv(days) {
   var ov = chagOverrides();
+  var zov = chagZmanOverrides();
+  var isT = function (v) { return v && /^\d{1,2}:\d{2}$/.test(v); };
   days.forEach(function (d) {
     if (!d.zRaw) return;
     var delta = 0;
     var v = chagOvVal(ov[d.date]);
-    if (v && /^\d{1,2}:\d{2}$/.test(v)) delta = toMinutes(v) - toMinutes(d.zRaw.shkia);
+    if (isT(v)) delta = toMinutes(v) - toMinutes(d.zRaw.shkia);
     d.adj = delta;
+    // צאת הכוכבים: תיקון ישיר גובר; אחרת זז יחד עם תיקון השקיעה
+    var tzetBase = addMins(d.zRaw.tzet, delta);
+    var tv = chagOvVal(zov['tzet:' + d.date]);
+    var tzet = isT(tv) ? tv : tzetBase;
+    d.adjTzet = isT(tv) ? toMinutes(tv) - toMinutes(tzetBase) : 0;
+    // סוף זמן ק"ש: זמן בוקר — לא מושפע מהשקיעה, רק מתיקון ישיר
+    var kv = chagOvVal(zov['ksh:' + d.date]);
+    var ksh = isT(kv) ? kv : d.zRaw.ksh;
+    d.adjKsh = isT(kv) ? toMinutes(kv) - toMinutes(d.zRaw.ksh) : 0;
     d.z = {
       date: d.zRaw.date,
       shkia: addMins(d.zRaw.shkia, delta),
-      tzet: addMins(d.zRaw.tzet, delta),
-      ksh: d.zRaw.ksh,
+      tzet: tzet,
+      ksh: ksh,
       hanetz: d.zRaw.hanetz
     };
   });
@@ -2823,12 +2843,40 @@ function chagShkiaOverride(dateStr, val) {
   showAlert('chag', 'השקיעה עודכנה ליום זה בלבד. שאר הימים לא השתנו.', 'success');
 }
 
+// עריכת צאת הכוכבים / סוף זמן ק"ש של יום אחד
+function chagZmanOverride(field, dateStr, val) {
+  if (!CHAG.current || !CHAG_ZMAN_FIELDS[field]) return;
+  var zov = chagZmanOverrides();
+  var key = field + ':' + dateStr;
+  var now = Date.now();
+  if (val && /^\d{1,2}:\d{2}$/.test(val)) {
+    zov[key] = { v: val, u: now };
+    chagPush(key, val, now);
+  } else {
+    delete zov[key];
+    chagPush(key, '', now, true);
+  }
+  chagSaveZmanOverrides(zov);
+  chagRefreshAfterOv();
+  showAlert('chag', CHAG_ZMAN_FIELDS[field] + ' עודכן ליום זה בלבד.', 'success');
+}
+
 // איפוס התיקונים של החג הנוכחי
 function chagResetOverrides() {
   var c = CHAG.current;
   if (!c) return;
   var ov = chagOverrides();
-  c.days.forEach(function (d) { delete ov[d.date]; });
+  var zov = chagZmanOverrides();
+  var now = Date.now();
+  c.days.forEach(function (d) {
+    if (ov[d.date]) chagPush('shkia:' + d.date, '', now, true);
+    delete ov[d.date];
+    Object.keys(CHAG_ZMAN_FIELDS).forEach(function (f) {
+      if (zov[f + ':' + d.date]) chagPush(f + ':' + d.date, '', now, true);
+      delete zov[f + ':' + d.date];
+    });
+  });
+  chagSaveZmanOverrides(zov);
   chagSaveOverrides(ov);
   chagRefreshAfterOv();
   showAlert('chag', 'התיקונים אופסו — חזרה לזמני Hebcal.', 'success');
@@ -2838,17 +2886,21 @@ function renderChagZmanim() {
   var c = CHAG.current;
   var box = document.getElementById('chag-zmanim');
   if (!c || !box) return;
-  var anyAdj = c.days.some(function (d) { return d.adj; });
-  var html = '<div class="chag-hint">אפשר לתקן את השקיעה לפי לוח מיצד. '
+  var anyAdj = c.days.some(function (d) { return d.adj || d.adjTzet || d.adjKsh; });
+  var html = '<div class="chag-hint">אפשר לתקן את השקיעה, צאת הכוכבים וסוף זמן ק"ש לפי לוח מיצד. '
            + 'כל יום נערך בנפרד — שינוי ביום אחד לא משפיע על האחרים. '
-           + 'התיקון נשמר ומעדכן את כל הזמנים הנגזרים באותו יום.'
+           + 'תיקון שקיעה מזיז גם את צאת הכוכבים, אלא אם תוקנה ידנית.'
            + (anyAdj ? ' <a href="#" onclick="chagResetOverrides();return false;">איפוס התיקונים</a>' : '')
            + '</div>';
   html += c.days.map(function (day, i) {
     var z = day.z;
-    var row = function (n, t) {
-      return '<div class="zman-row"><div><div class="zman-name">' + n + '</div></div>'
-           + '<div class="zman-time">' + t + '</div></div>';
+    var note = function (a) {
+      return a ? '<div class="zman-note">תוקן ידנית (' + (a > 0 ? '+' : '') + a + ' דק\')</div>' : '';
+    };
+    var edit = function (n, field, t, a) {
+      return '<div class="zman-row"><div><div class="zman-name">' + n + '</div>' + note(a) + '</div>'
+           + '<div><input type="time" class="chag-shkia" value="' + t + '" '
+           + 'onchange="chagZmanOverride(\'' + field + '\', \'' + day.date + '\', this.value)"></div></div>';
     };
     return '<div class="chag-day-head">' + escHtml(chagWeekday(day.d) + ' ' + chagGreg(day.d) + ' — ' + chagDayLabel(c, i)) + '</div>'
       + '<div class="zman-row"><div><div class="zman-name">שקיעה</div>'
@@ -2856,8 +2908,8 @@ function renderChagZmanim() {
       + '</div><div>'
       + '<input type="time" class="chag-shkia" value="' + z.shkia + '" '
       + 'onchange="chagShkiaOverride(\'' + day.date + '\', this.value)"></div></div>'
-      + row('צאת הכוכבים', z.tzet)
-      + row('סוף זמן ק"ש (גר"א)', z.ksh);
+      + edit('צאת הכוכבים', 'tzet', z.tzet, day.adjTzet)
+      + edit('סוף זמן ק"ש (גר"א)', 'ksh', z.ksh, day.adjKsh);
   }).join('');
   box.innerHTML = html;
 }
@@ -3218,6 +3270,7 @@ function chagSyncLoad() {
 function chagSyncMerge(rows) {
   var drafts = chagDrafts();
   var ov = chagOverrides();
+  var zov = chagZmanOverrides();
   var srv = {};
   var touched = false;
 
@@ -3241,6 +3294,12 @@ function chagSyncMerge(rows) {
         ov[k] = { v: chagNormTime(r.value), u: up };
         touched = true;
       }
+    } else if (CHAG_ZMAN_FIELDS[kind]) {
+      var lz = zov[r.key];
+      if (r.value && (!lz || up > chagOvTime(lz))) {
+        zov[r.key] = { v: chagNormTime(r.value), u: up };
+        touched = true;
+      }
     }
   });
 
@@ -3258,11 +3317,19 @@ function chagSyncMerge(rows) {
       chagPush('shkia:' + k, v, chagOvTime(ov[k]) || Date.now());
     }
   });
+  Object.keys(zov).forEach(function (key) {
+    var r = srv[key];
+    var v = chagOvVal(zov[key]);
+    if (v && (!r || chagOvTime(zov[key]) > (Number(r.updated) || 0))) {
+      chagPush(key, v, chagOvTime(zov[key]) || Date.now());
+    }
+  });
 
   if (!touched) return;
   try {
     localStorage.setItem('chag_drafts', JSON.stringify(drafts));
     localStorage.setItem('chag_shkia_ov', JSON.stringify(ov));
+    localStorage.setItem('chag_zman_ov', JSON.stringify(zov));
   } catch (e) {}
 
   // רענון התצוגה עם מה שהגיע מהשרת — בלי לדרוס עריכה פתוחה
