@@ -685,17 +685,24 @@ function getChagSheet() {
     sh = ss.insertSheet('chag');
     sh.appendRow(['key', 'value', 'updated']);
   }
+  // עמודת הערך נשמרת כטקסט — אחרת Sheets הופך "18:50" לתא שעה (30.12.1899)
+  sh.getRange('B:B').setNumberFormat('@');
   return sh;
 }
 
 function chagGetAll() {
   var sh = getChagSheet();
+  var tz = sh.getParent().getSpreadsheetTimeZone() || 'Asia/Jerusalem';
   var d = sh.getDataRange().getValues();
   var out = [];
   for (var i = 1; i < d.length; i++) {
-    if (d[i][0]) out.push({
+    if (!d[i][0]) continue;
+    var v = d[i][1];
+    // שורות ישנות שנשמרו כתא שעה — מחזירים "HH:mm" במקום מחרוזת Date
+    if (v instanceof Date) v = Utilities.formatDate(v, tz, 'HH:mm');
+    out.push({
       key: String(d[i][0]),
-      value: String(d[i][1]),
+      value: String(v),
       updated: Number(d[i][2]) || 0
     });
   }
