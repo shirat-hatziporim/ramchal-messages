@@ -237,8 +237,7 @@ function saveWhatsappMessage(message) {
   GmailApp.sendEmail(
     getAdminEmail(),
     "הודעת וואטסאפ מוכנה לשליחה",
-    "העתק ושלח לקבוצה:\n\n━━━━━━━━━━━━━━━━\n" + message +
-    "\n━━━━━━━━━━━━━━━━\n\nקישור לדוקומנט: " + doc.getUrl()
+    message   // ההודעה בלבד — מוכנה ל"העתק הכל"
   );
 }
 
