@@ -113,6 +113,15 @@ const BOT_B64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8
 // ==================== פונקציה ראשית ====================
 function sendWeeklyZmanim() {
   try {
+    // מתג "שליחה אוטומטית" באתר (הגדרות ← אוטומציה). כבוי = אין שליחה, ומייל תזכורת לגבאי.
+    if (!isAutoSendEnabled()) {
+      Logger.log("שליחה אוטומטית כבויה מהאתר - לא שולח");
+      GmailApp.sendEmail(getAdminEmail(),
+        "⏸️ השליחה האוטומטית של זמני שבת כבויה",
+        "שלום!\n\nהשליחה האוטומטית של זמני התפילות כבויה, ולכן לא נשלחו זמנים השבוע.\n\nלהפעלה מחדש: באתר ← הגדרות ← אוטומציה ← \"שליחה אוטומטית כל יום חמישי\".");
+      return;
+    }
+
     const zmanim = getZmanimForShabbat();
     if (!zmanim) { Logger.log("לא נמצאו זמנים"); return; }
 
@@ -736,6 +745,16 @@ function chagDeleteKey(key) {
   for (var i = d.length - 1; i >= 1; i--) {
     if (String(d[i][0]) === String(key)) sh.deleteRow(i + 1);
   }
+}
+
+// ---- מתג שליחה אוטומטית ----
+// מפתח auto:send בלשונית chag: 'off' = כבוי; כל ערך אחר או היעדר שורה = פעיל.
+function isAutoSendEnabled() {
+  var rows = chagGetAll();
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i].key === 'auto:send') return rows[i].value !== 'off';
+  }
+  return true;
 }
 
 // ---- שבתות ללא שליחה אוטומטית ----

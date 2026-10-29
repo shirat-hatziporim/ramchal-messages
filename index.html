@@ -1380,10 +1380,10 @@
           <div class="toggle-row">
             <div class="toggle-info">
               <div class="toggle-title">שליחה אוטומטית כל יום חמישי</div>
-              <div class="toggle-desc">Apps Script ישלח זמנים ב-19:00</div>
+              <div class="toggle-desc">Apps Script ישלח זמנים ב-19:00. כיבוי עוצר את השליחה האוטומטית לגמרי (נשמר מיד)</div>
             </div>
             <label class="toggle">
-              <input type="checkbox" id="toggle-auto" checked>
+              <input type="checkbox" id="toggle-auto" checked onchange="setAutoSend(this.checked)">
               <span class="toggle-slider"></span>
             </label>
           </div>
@@ -1624,7 +1624,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-10-29.1';
+var APP_VERSION = '2026-10-29.2';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -1657,7 +1657,7 @@ function switchTab(tab) {
   if (tab === 'members') renderMembers();
   if (tab === 'hh') renderHH();
   if (tab === 'chag') initChagTab();
-  if (tab === 'settings') { renderSkipList(); setTimeout(chagSyncLoad, 300); }
+  if (tab === 'settings') { renderAutoSend(); renderSkipList(); setTimeout(chagSyncLoad, 300); }
   if (tab === 'dashboard') updateDashboard();
   if (tab === 'shabbat' && !STATE.zmanim) {
     // טען זמנים אוטומטית בכניסה ראשונה לטאב
@@ -3305,7 +3305,13 @@ function chagSyncMerge(rows) {
     var kind = r.key.substring(0, i), k = r.key.substring(i + 1);
     var up = Number(r.updated) || 0;
 
-    if (kind === 'skip') {
+    if (kind === 'auto' && k === 'send') {
+      var la = autoSendState();
+      if (!la || up > (la.u || 0)) {
+        try { localStorage.setItem('auto_send', JSON.stringify({ v: r.value !== 'off', u: up })); } catch (e) {}
+        renderAutoSend();
+      }
+    } else if (kind === 'skip') {
       var ls = skips[k];
       if (!ls || up > (ls.u || 0)) {
         skips[k] = (r.value === 'off')
@@ -3355,6 +3361,13 @@ function chagSyncMerge(rows) {
       chagPush(key, v, chagOvTime(zov[key]) || Date.now());
     }
   });
+
+  // מתג שליחה אוטומטית: מקומי חדש יותר (או חסר בשרת) נדחף לשרת
+  var aLoc = autoSendState();
+  var aSrv = srv['auto:send'];
+  if (aLoc && (!aSrv || (aLoc.u || 0) > (Number(aSrv.updated) || 0))) {
+    chagPush('auto:send', aLoc.v ? 'on' : 'off', aLoc.u || Date.now());
+  }
 
   // שבתות ללא שליחה: מה שמקומי וחדש יותר (או חסר בשרת) נדחף לשרת
   Object.keys(skips).forEach(function (k) {
@@ -3760,6 +3773,28 @@ function renderSavedTemplates() {
       + '<button data-idx="' + idx + '" onclick="deleteCustomTemplate(this.dataset.idx)" style="background:none;border:none;cursor:pointer;color:#999;font-size:16px;padding:0 4px;line-height:1;" title="מחק">×</button>'
       + '</div>';
   }).join('');
+}
+
+// ===== מתג שליחה אוטומטית (מסונכרן לגיליון, מפתח auto:send = on/off) =====
+// נשמר מיד בלחיצה (לא מחכה ל"שמור שינויים"), והטריגר ב-Apps Script קורא אותו.
+function autoSendState() {
+  try { return JSON.parse(localStorage.getItem('auto_send') || 'null'); }
+  catch (e) { return null; }
+}
+function renderAutoSend() {
+  var st = autoSendState();
+  var el = document.getElementById('toggle-auto');
+  if (el) el.checked = !st || st.v !== false;   // ברירת מחדל: פעיל
+}
+function setAutoSend(on) {
+  var st = { v: !!on, u: Date.now() };
+  try { localStorage.setItem('auto_send', JSON.stringify(st)); } catch (e) {}
+  STATE.settings.autoSend = st.v;
+  try { localStorage.setItem('msg_settings', JSON.stringify(STATE.settings)); } catch (e) {}
+  chagPush('auto:send', st.v ? 'on' : 'off', st.u);
+  alert(st.v
+    ? '✅ השליחה האוטומטית פעילה — זמני השבת יישלחו ביום חמישי ב-19:00.'
+    : '⏸️ השליחה האוטומטית כבויה — לא יישלחו זמנים ביום חמישי עד שתפעיל מחדש. תקבל מייל תזכורת בכל חמישי.');
 }
 
 // ===== שבתות ללא שליחה אוטומטית =====
