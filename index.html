@@ -1411,6 +1411,26 @@
 
         <div class="card">
           <div class="card-title">
+            <div class="icon">⏸️</div>
+            שבתות ללא שליחה
+          </div>
+          <div style="font-size:12px;color:var(--gray-mid);margin-bottom:10px;line-height:1.5;">
+            בשבתות שמסומנות כאן לא יישלחו זמני התפילה האוטומטיים (ביום חמישי). תקבל מייל עדכון שהשליחה דולגה.
+          </div>
+          <div class="form-group">
+            <label>תאריך (שבת)</label>
+            <input type="date" id="skip-date">
+          </div>
+          <div class="form-group">
+            <label>סיבה (אופציונלי)</label>
+            <input type="text" id="skip-reason" placeholder="למשל: שבת חתן, שבת מיוחדת">
+          </div>
+          <button class="btn btn-outline btn-full" onclick="addShabbatSkip()">+ הוסף שבת ללא שליחה</button>
+          <div id="skip-list" style="margin-top:12px;"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
             <div class="icon">🔗</div>
             חיבור Apps Script
           </div>
@@ -1604,7 +1624,7 @@ const STATE = {
 };
 
 // ===== רענון עמוק =====
-var APP_VERSION = '2026-09-24.2';
+var APP_VERSION = '2026-10-29.1';
 
 // עוקף את מטמון הדפדפן ואת מטמון GitHub Pages ע"י טעינה מחדש עם פרמטר ייחודי.
 // ⚠ אינו נוגע ב-localStorage — כל הנתונים (מתפללים, חובות, רישומים, היסטוריה) נשמרים.
@@ -1637,6 +1657,7 @@ function switchTab(tab) {
   if (tab === 'members') renderMembers();
   if (tab === 'hh') renderHH();
   if (tab === 'chag') initChagTab();
+  if (tab === 'settings') { renderSkipList(); setTimeout(chagSyncLoad, 300); }
   if (tab === 'dashboard') updateDashboard();
   if (tab === 'shabbat' && !STATE.zmanim) {
     // טען זמנים אוטומטית בכניסה ראשונה לטאב
@@ -3273,6 +3294,8 @@ function chagSyncMerge(rows) {
   var zov = chagZmanOverrides();
   var srv = {};
   var touched = false;
+  var skips = skipsLoad();
+  var skipTouched = false;
 
   (rows || []).forEach(function (r) {
     if (!r || !r.key) return;
@@ -3282,7 +3305,15 @@ function chagSyncMerge(rows) {
     var kind = r.key.substring(0, i), k = r.key.substring(i + 1);
     var up = Number(r.updated) || 0;
 
-    if (kind === 'draft') {
+    if (kind === 'skip') {
+      var ls = skips[k];
+      if (!ls || up > (ls.u || 0)) {
+        skips[k] = (r.value === 'off')
+          ? { r: '', u: up, off: true }
+          : { r: r.value === '1' ? '' : r.value, u: up };
+        skipTouched = true;
+      }
+    } else if (kind === 'draft') {
       var loc = drafts[k];
       if (r.value && (!loc || up > (loc.u || 0))) {
         drafts[k] = { t: r.value, at: new Date(up || Date.now()).toLocaleString('he-IL'), u: up };
@@ -3324,6 +3355,13 @@ function chagSyncMerge(rows) {
       chagPush(key, v, chagOvTime(zov[key]) || Date.now());
     }
   });
+
+  // שבתות ללא שליחה: מה שמקומי וחדש יותר (או חסר בשרת) נדחף לשרת
+  Object.keys(skips).forEach(function (k) {
+    var r = srv['skip:' + k];
+    if (!r || (skips[k].u || 0) > (Number(r.updated) || 0)) skipPushOne(k, skips[k]);
+  });
+  if (skipTouched) { skipsSave(skips); renderSkipList(); }
 
   if (!touched) return;
   try {
@@ -3722,6 +3760,86 @@ function renderSavedTemplates() {
       + '<button data-idx="' + idx + '" onclick="deleteCustomTemplate(this.dataset.idx)" style="background:none;border:none;cursor:pointer;color:#999;font-size:16px;padding:0 4px;line-height:1;" title="מחק">×</button>'
       + '</div>';
   }).join('');
+}
+
+// ===== שבתות ללא שליחה אוטומטית =====
+// נשמר מקומית ב-shabbat_skips: { 'yyyy-mm-dd': { r: סיבה, u: חותמת זמן, off: true אם בוטל } }
+// ומסונכרן ללשונית chag בגיליון כמפתח skip:<תאריך>. ביטול = 'off' (לא מחיקה) כדי שיגיע גם למכשירים אחרים.
+function skipsLoad() {
+  try { return JSON.parse(localStorage.getItem('shabbat_skips') || '{}') || {}; }
+  catch (e) { return {}; }
+}
+function skipsSave(o) {
+  try { localStorage.setItem('shabbat_skips', JSON.stringify(o)); } catch (e) {}
+}
+function skipPushOne(date, rec) {
+  chagPush('skip:' + date, rec.off ? 'off' : (rec.r || '1'), rec.u || Date.now());
+}
+function skipDateLabel(d) {
+  var p = d.split('-');
+  return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function addShabbatSkip() {
+  var inp = document.getElementById('skip-date');
+  var reasonEl = document.getElementById('skip-reason');
+  var val = inp.value;
+  if (!val) { alert('יש לבחור תאריך'); return; }
+  var p = val.split('-');
+  var d = new Date(+p[0], +p[1] - 1, +p[2]);
+  var moved = false;
+  if (d.getDay() !== 6) {          // לא שבת — מזיזים לשבת הקרובה אחריו
+    d.setDate(d.getDate() + (6 - d.getDay()));
+    moved = true;
+  }
+  var key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  var skips = skipsLoad();
+  var rec = { r: (reasonEl.value || '').trim(), u: Date.now() };
+  skips[key] = rec;
+  skipsSave(skips);
+  skipPushOne(key, rec);
+  inp.value = '';
+  reasonEl.value = '';
+  renderSkipList();
+  if (moved) alert('התאריך שבחרת אינו שבת — נרשמה השבת הקרובה: ' + skipDateLabel(key));
+}
+
+function removeShabbatSkip(key) {
+  var skips = skipsLoad();
+  var rec = { r: '', u: Date.now(), off: true };
+  skips[key] = rec;
+  skipsSave(skips);
+  skipPushOne(key, rec);
+  renderSkipList();
+}
+
+function renderSkipList() {
+  var box = document.getElementById('skip-list');
+  if (!box) return;
+  var skips = skipsLoad();
+  var today = new Date();
+  var todayKey = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  var keys = Object.keys(skips).filter(function (k) { return !skips[k].off; }).sort();
+  if (!keys.length) {
+    box.innerHTML = '<div style="font-size:12px;color:var(--gray-mid);text-align:center;">אין שבתות מוגדרות — כל השבתות נשלחות כרגיל.</div>';
+    return;
+  }
+  box.innerHTML = keys.map(function (k) {
+    var past = k < todayKey;
+    var reason = skips[k].r ? String(skips[k].r) : '';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;margin-bottom:6px;background:#faf9f7;border:1.5px solid var(--gray-light);border-radius:8px;' + (past ? 'opacity:.5;' : '') + '">'
+      + '<div><div style="font-size:13px;font-weight:600;color:var(--navy);">' + skipDateLabel(k) + (past ? ' (עבר)' : '') + '</div>'
+      + (reason ? '<div style="font-size:11px;color:var(--gray-mid);" class="skip-reason"></div>' : '')
+      + '</div>'
+      + '<button data-k="' + k + '" onclick="removeShabbatSkip(this.dataset.k)" style="background:none;border:none;cursor:pointer;color:#999;font-size:18px;line-height:1;" title="בטל דילוג">×</button>'
+      + '</div>';
+  }).join('');
+  // הסיבה נכנסת כטקסט (לא כ-HTML) — כדי שתווים מיוחדים לא ישברו את התצוגה
+  var reasonEls = box.querySelectorAll('.skip-reason');
+  var ri = 0;
+  keys.forEach(function (k) {
+    if (skips[k].r && reasonEls[ri]) { reasonEls[ri].textContent = String(skips[k].r); ri++; }
+  });
 }
 
 // ===== SETTINGS =====

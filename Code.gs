@@ -118,6 +118,14 @@ function sendWeeklyZmanim() {
 
     const parasha = getParasha(zmanim.shabbatDate);
 
+    // שבתות שהוגדרו באתר (הגדרות ← "שבתות ללא שליחה") — דילוג מכוון, עם התראה לגבאי
+    const skipInfo = getShabbatSkip(zmanim.shabbatDate);
+    if (skipInfo) {
+      Logger.log("שבת מוגדרת לדילוג - לא שולח אוטומטי: " + skipInfo.date);
+      notifyShabbatSkipped(zmanim.shabbatDate, parasha, skipInfo.reason);
+      return;
+    }
+
     if (isHolidayWeekend(zmanim.shabbatDate)) {
       Logger.log("חג השבוע - לא שולח אוטומטי");
       notifyGabbai(zmanim.shabbatDate, parasha);
@@ -728,6 +736,30 @@ function chagDeleteKey(key) {
   for (var i = d.length - 1; i >= 1; i--) {
     if (String(d[i][0]) === String(key)) sh.deleteRow(i + 1);
   }
+}
+
+// ---- שבתות ללא שליחה אוטומטית ----
+// מפתח בלשונית chag: skip:<yyyy-MM-dd של השבת>, ערך = סיבה (או 'off' = בוטל).
+// ביטול נשמר כ-'off' ולא נמחק, כדי שהמחיקה תגיע גם למכשירים אחרים בסנכרון.
+function getShabbatSkip(shabbatDate) {
+  var dateStr = Utilities.formatDate(shabbatDate, 'Asia/Jerusalem', 'yyyy-MM-dd');
+  var rows = chagGetAll();
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i].key === 'skip:' + dateStr) {
+      if (rows[i].value === 'off') return null;
+      return { date: dateStr, reason: rows[i].value === '1' ? '' : rows[i].value };
+    }
+  }
+  return null;
+}
+
+function notifyShabbatSkipped(shabbatDate, parasha, reason) {
+  var dateStr = Utilities.formatDate(shabbatDate, 'Asia/Jerusalem', 'dd/MM/yyyy');
+  GmailApp.sendEmail(getAdminEmail(),
+    'ℹ️ זמני שבת לא נשלחו השבוע (לפי הגדרה)',
+    'שלום!\n\nשבת ' + dateStr + ' (פרשת ' + parasha + ') הוגדרה כשבת ללא שליחה אוטומטית, ולכן לא נשלחו זמני תפילה.'
+    + (reason ? '\nסיבה שנרשמה: ' + reason : '')
+    + '\n\nלביטול: באתר ← הגדרות ← "שבתות ללא שליחה".');
 }
 
 // ---- מחיקת שליחות מההיסטוריה ----
